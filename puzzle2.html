@@ -22,14 +22,7 @@
                 position: relative;
                 background: #f0f0f0;
             }
-            @media (min-width: 1024px) {
-    .puzzle-container {
-        width: 50svh;
-        height: 50svh;
-        max-width: 100vw;
-        max-height: 100svh;
-    }
-}
+
             .grid {
                 display: grid;
                 position: absolute;
@@ -58,6 +51,27 @@
             option,
             #timer {
                 font-size: 3rem;
+            }
+            @media (min-width: 1024px) {
+                .puzzle-container {
+                    width: 50svh;
+                    height: 50svh;
+                    max-width: 100vw;
+                    max-height: 100svh;
+                }
+                input {
+                    font-size: 1rem;
+                }
+                .piece-selector {
+                    margin: 10px auto;
+                    text-align: center;
+                    font-size: 1rem;
+                }
+                select,
+                option,
+                #timer {
+                    font-size: 1rem;
+                }
             }
         </style>
     </head>
