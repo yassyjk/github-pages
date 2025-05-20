@@ -52,6 +52,29 @@
             #timer {
                 font-size: 3rem;
             }
+
+            #loading {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255, 255, 255, 0.7);
+                z-index: 100;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .loadingMessage {
+                font-size: 3rem;
+                color: #333;
+                background: #fffbe8;
+                padding: 2em 2em;
+                border-radius: 1em;
+                box-shadow: 0 0 10px #ccc;
+            }
+
             @media (min-width: 1024px) {
                 .puzzle-container {
                     width: 90svh;
@@ -72,6 +95,9 @@
                 #timer {
                     font-size: 1rem;
                 }
+                .loadingMessage {
+                    font-size: 1.5rem;
+                }
             }
         </style>
     </head>
@@ -87,6 +113,9 @@
         </div>
         <div id="timer">00:00.00</div>
         <div class="puzzle-container">
+            <div id="loading" style="display: none">
+                <div class="loadingMessage">処理中..ちょっと待ってね。</div>
+            </div>
             <div id="grid" class="grid"></div>
             <div id="puzzleContainer"></div>
         </div>
@@ -133,6 +162,8 @@
 
             // 画像を読み込んでパズル生成
             function createPuzzle(imageSrc) {
+                showLoading();
+
                 const container = document.getElementById("puzzleContainer");
                 container.innerHTML = "";
 
@@ -198,6 +229,8 @@
                     }
                     shuffleTiles();
                     tiles.forEach((tile) => container.appendChild(tile));
+
+                    hideLoading();
                 };
                 img.src = imageSrc;
             }
@@ -326,6 +359,15 @@
                     };
                 }
             });
+
+            // loadingの表示
+            function showLoading() {
+                document.getElementById("loading").style.display = "flex";
+            }
+
+            function hideLoading() {
+                document.getElementById("loading").style.display = "none";
+            }
         </script>
     </body>
 </html>
