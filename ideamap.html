@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8" />
+    <title>アイデアマップ</title>
+    <style>
+      body {
+        font-family: sans-serif;
+      }
+      .node-edit {
+        width: 150px;
+        font-size: 18px;
+        padding: 2px;
+      }
+      .mindmap-svg {
+        border: 1px solid #ccc;
+        background: #f9f9f9;
+        display: block;
+      }
+      .mindmap-container {
+        width: 100vw;
+        height: 100vh;
+        overflow: auto;
+        box-sizing: border-box;
+      }
+      .node-group:hover {
+        filter: drop-shadow(0 2px 2px #92b398);
+      }
+      .node-btn {
+        cursor: pointer;
+        font-size: 18px;
+        background: #fff;
+        border: 1px solid #aaa;
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        line-height: 20px;
+        text-align: center;
+        user-select: none;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .collapse-circle {
+        cursor: pointer;
+        stroke: #888;
+        stroke-width: 2;
+        transition: fill 0.2s;
+      }
+      .collapse-circle.has-children {
+        fill: #888;
+      }
+      .export-import-bar {
+        margin-bottom: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>アイデアマップ</h3>
+    <div class="export-import-bar">
+      <button id="export-btn">エクスポート</button>
+      <input
+        type="file"
+        id="import-input"
+        accept=".json"
+        style="display: none"
+      />
+      <button id="import-btn">インポート</button>
+    </div>
+    <div id="root"></div>
+    <!-- ReactとBabel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script type="text/babel">
+      let nodeSeq = 1;
+      function createNode(name = "項目", children = [], collapsed = false) {
+        return { id: nodeSeq++, name, children, collapsed };
+      }
+      function getSubtreeHeight(node, nodeHeight = 60, nodeGap = 20) {
+        if (node.collapsed || node.children.length === 0) return nodeHeight;
+        const total = node.children
+          .map((child) => getSubtreeHeight(child, nodeHeight, nodeGap))
+          .reduce((a, b) => a + b, 0);
+        return total + nodeGap * (node.children.length - 1);
+      }
+
+      function layoutTree(
+        node,
+        x,
+        y,
+        positions = {},
+        parent = null,
+        nodeHeight = 60,
+        nodeGap = 20,
+        isRoot = false,
+        xOffset = 150
+      ) {
+        // const isMobile = window.matchMedia("(max-width: 767px)").matches;
+        // const xOffset = isMobile ? 130 : 170;
+        // rootかつ、子ノードがあり、rootノードが展開している場合
+        if (isRoot && node.children.length > 0 && !node.collapsed) {
+          let childYs = [];
+          let childY = 0;
+          node.children.forEach((child) => {
+            layoutTree(
+              child,
+              x + xOffset,
+              childY,
+              positions,
+              node,
+              nodeHeight,
+              nodeGap,
+              false,
+              xOffset
+            );
+            childYs.push(positions[child.id].y);
+            childY += getSubtreeHeight(child, nodeHeight, nodeGap) + nodeGap;
+          });
+          // rootのy座標は、子ノードの中央
+          const maxY = childYs.length > 0 ? Math.max(...childYs) : 0;
+          y = maxY / 2;
+          positions[node.id] = { x, y, node, parent };
+        }
+        // rootかつ、子ノードがあり、rootノードが折りたたまれている場合
+        else if (isRoot && node.children.length > 0 && node.collapsed) {
+          positions[node.id] = { x, y, node, parent };
+        } // root以外の子ノードの場合
+        else {
+          const subtreeHeight = getSubtreeHeight(node, nodeHeight, nodeGap);
+          positions[node.id] = { x, y, node, parent };
+          if (!node.collapsed && node.children.length > 0) {
+            let childY = isRoot ? 0 : y; //　rootの子の場合は、y=0から始める。一つ目の孫ノードは、子ノードと同じY
+            node.children.forEach((child, index) => {
+              layoutTree(
+                child,
+                x + xOffset,
+                childY,
+                positions,
+                node,
+                nodeHeight,
+                nodeGap,
+                false, //子はfalse
+                xOffset
+              );
+
+              const childSubtreeHeight = getSubtreeHeight(
+                child,
+                nodeHeight,
+                nodeGap
+              );
+              childY += childSubtreeHeight + nodeGap;
+            });
+          }
+        }
+        return positions;
+      }
+
+      function CollapseCircle({ x, y, hasChildren, collapsed, onClick }) {
+        let fillColor = "#fff";
+        if (hasChildren) fillColor = collapsed ? "limegreen" : "#888";
+
+        return (
+          <circle
+            cx={x}
+            cy={y}
+            r={9}
+            className="collapse-circle"
+            fill={fillColor}
+            onClick={hasChildren ? onClick : undefined}
+          />
+        );
+      }
+
+      function MindMapNode({
+        node,
+        pos,
+        onEdit,
+        onAdd,
+        onDelete,
+        onToggle,
+        editingId,
+        setEditingId,
+      }) {
+        const [tempName, setTempName] = React.useState(
+          node.name.length > 0 ? node.name : "名前なし"
+        );
+
+        React.useEffect(() => {
+          if (node.name.length > 0) setTempName(node.name);
+          else setTempName("名前なし");
+        }, [node.name, editingId]);
+
+        const circleX = 0,
+          circleY = 0;
+
+        return (
+          <g className="node-group" transform={`translate(${pos.x},${pos.y})`}>
+            <CollapseCircle
+              x={circleX}
+              y={circleY}
+              hasChildren={node.children.length > 0}
+              collapsed={node.collapsed}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (node.children.length > 0) onToggle(node.id);
+              }}
+            />
+            {editingId === node.id ? (
+              <foreignObject x={-50} y={15} width={170} height={30}>
+                <input
+                  className="node-edit"
+                  type="text"
+                  value={tempName}
+                  onChange={(e) =>
+                    setTempName(
+                      e.target.value.length > 0 ? e.target.value : "名前なし"
+                    )
+                  }
+                  onBlur={() => {
+                    onEdit(node.id, tempName);
+                    setEditingId(null);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      onEdit(node.id, tempName);
+                      setEditingId(null);
+                    }
+                  }}
+                  autoFocus
+                />
+              </foreignObject>
+            ) : (
+              <text
+                x={0}
+                y={35}
+                textAnchor="middle"
+                style={{ cursor: "pointer", fontSize: "16px" }}
+                onClick={() => setEditingId(node.id)}
+              >
+                {node.name}
+              </text>
+            )}
+            <foreignObject x={25} y={-10} width={30} height={50}>
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  justifyContent: "flex-start",
+                  height: "50px",
+                }}
+              >
+                <div
+                  className="node-btn add"
+                  title="子追加"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAdd(node.id);
+                  }}
+                >
+                  ＋
+                </div>
+                {pos.parent && (
+                  <div
+                    className="node-btn del"
+                    title="削除"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDelete(node.id);
+                    }}
+                  >
+                    －
+                  </div>
+                )}
+              </div>
+            </foreignObject>
+          </g>
+        );
+      }
+
+      function MindMapLinks({ positions }) {
+        const lines = [];
+        Object.values(positions).forEach((pos) => {
+          if (pos.parent) {
+            const parentPos = positions[pos.parent.id];
+            lines.push(
+              <line
+                key={pos.node.id}
+                x1={parentPos.x}
+                y1={parentPos.y}
+                x2={pos.x}
+                y2={pos.y}
+                stroke="#bbb"
+                strokeWidth={2}
+              />
+            );
+          }
+        });
+        return <g>{lines}</g>;
+      }
+
+      function MindMapApp() {
+        const [root, setRoot] = React.useState(
+          createNode("中心", [
+            createNode("子1", [createNode("孫1-1"), createNode("孫1-2")]),
+            createNode("子2", [createNode("孫2-1"), createNode("孫2-2")]),
+          ])
+        );
+
+        const [editingId, setEditingId] = React.useState(null);
+        const [isMobile, setIsMobile] = React.useState(
+          window.matchMedia("(max-width: 767px)").matches
+        );
+
+        React.useEffect(() => {
+          const handler = () => {
+            setIsMobile(window.matchMedia("(max-width: 767px)").matches);
+          };
+
+          window.addEventListener("resize", handler);
+          return () => window.removeEventListener("resize", handler);
+        }, []);
+
+        const handleEdit = (id, newName) => {
+          setRoot(editNode(root, id, (node) => ({ ...node, name: newName })));
+        };
+
+        const handleAdd = (id) => {
+          setRoot(
+            editNode(root, id, (node) => ({
+              ...node,
+              children: [...node.children, createNode("項目")],
+            }))
+          );
+        };
+
+        const handleDelete = (id) => {
+          if (root.id === id) return;
+          if (window.confirm("本当にこのノードを削除しますか？"))
+            setRoot(deleteNode(root, id));
+        };
+
+        const handleToggle = (id) => {
+          setRoot(
+            editNode(root, id, (node) => ({
+              ...node,
+              collapsed: !node.collapsed,
+            }))
+          );
+        };
+
+        const nodeHeight = 60;
+        const nodeGap = 20;
+        // 全体の高さ
+        const totalTreeHeight = getSubtreeHeight(root, nodeHeight, nodeGap);
+        // rootのy位置は、全体の高さの半分
+        const rootY = totalTreeHeight / 2;
+
+        const xOffset = isMobile ? 130 : 170;
+
+        const positions = layoutTree(
+          root,
+          50,
+          rootY,
+          {},
+          null,
+          nodeHeight,
+          nodeGap,
+          true,
+          xOffset
+        );
+        const yValues = Object.values(positions).map((pos) => pos.y);
+        const minY = Math.min(...yValues, 0);
+        const maxY = Math.max(...yValues, 0);
+        const svgHeight = maxY - minY + 130;
+        const yOffset = -minY + 50;
+        React.useEffect(() => {
+          document.getElementById("export-btn").onclick = () => {
+            const exportObj = { nodeSeq, root };
+            const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
+              type: "application/json",
+            });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = "mindmap.json";
+            a.click();
+            URL.revokeObjectURL(url);
+          };
+          document.getElementById("import-btn").onclick = () => {
+            document.getElementById("import-input").click();
+          };
+          document.getElementById("import-input").onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+              try {
+                const data = JSON.parse(evt.target.result);
+                if (data && data.root) {
+                  nodeSeq = data.nodeSeq || 1;
+                  setRoot(data.root);
+                } else {
+                  alert("不正なデータです");
+                }
+              } catch (err) {
+                alert("読み込み失敗: " + err);
+              }
+            };
+            reader.readAsText(file);
+          };
+        }, [root]);
+        const xValues = Object.values(positions).map((pos) => pos.x);
+        const maxX = Math.max(...xValues, 0);
+        const svgWidth = maxX + 120;
+        return (
+          <div className="mindmap-container">
+            <svg width={svgWidth} height={svgHeight} className="mindmap-svg">
+              <g transform={`translate(0,${yOffset})`}>
+                <MindMapLinks positions={positions} />
+                {Object.values(positions).map((pos) => (
+                  <MindMapNode
+                    key={pos.node.id}
+                    node={pos.node}
+                    pos={{ ...pos, y: pos.y }}
+                    onEdit={handleEdit}
+                    onAdd={handleAdd}
+                    onDelete={handleDelete}
+                    onToggle={handleToggle}
+                    editingId={editingId}
+                    setEditingId={setEditingId}
+                  />
+                ))}
+              </g>
+            </svg>
+          </div>
+        );
+      }
+
+      function editNode(node, id, fn) {
+        if (node.id === id) return fn(node);
+        return {
+          ...node,
+          children: node.children.map((child) => editNode(child, id, fn)),
+        };
+      }
+
+      function deleteNode(node, id) {
+        return {
+          ...node,
+          children: node.children
+            .filter((child) => child.id !== id)
+            .map((child) => deleteNode(child, id)),
+        };
+      }
+      const root = ReactDOM.createRoot(document.getElementById("root"));
+      root.render(<MindMapApp />);
+    </script>
+  </body>
+</html>
