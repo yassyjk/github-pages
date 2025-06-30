@@ -498,6 +498,65 @@
           event.target.value = null;
         }, []);
 
+        // PNGとしてエクスポート処理
+        const handleExportPNG = React.useCallback(() => {
+          const svgElem = document.querySelector(".mindmap-svg");
+          if (!svgElem) {
+            alert("SVGが見つかりません");
+            return;
+          }
+
+          // SVGをシリアライズ
+          const serializer = new XMLSerializer();
+          let source = serializer.serializeToString(svgElem);
+
+          // SVGにxmlns属性を追加（必要な場合）
+          if (
+            !source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)
+          ) {
+            source = source.replace(
+              /^<svg/,
+              '<svg xmlns="http://www.w3.org/2000/svg"'
+            );
+          }
+
+          // SVGデータを画像として読み込む
+          const svg64 = btoa(unescape(encodeURIComponent(source)));
+          const image64 = "data:image/svg+xml;base64," + svg64;
+
+          const img = new window.Image();
+          // SVGのサイズを取得
+          const width = svgElem.width.baseVal.value || 800;
+          const height = svgElem.height.baseVal.value || 600;
+          img.onload = function () {
+            // Canvasを作成
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+            // 背景白
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, width, height);
+            ctx.drawImage(img, 0, 0, width, height);
+
+            // PNGとしてダウンロード
+            canvas.toBlob((blob) => {
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = "mindmap.png";
+                a.click();
+                URL.revokeObjectURL(url);
+              }
+            }, "image/png");
+          };
+          img.onerror = function () {
+            alert("画像変換に失敗しました");
+          };
+          img.src = image64;
+        }, []);
+
         // 一時保存処理
         const handleSaveTemp = React.useCallback(() => {
           const tempData = { nextNodeId, root };
@@ -590,6 +649,7 @@
               >
                 インポート
               </button>
+              <button onClick={handleExportPNG}>PNG画像で保存</button>
               <br />
               <button onClick={handleSaveTemp}>一時保存</button>
               <button onClick={handleResume}>一時保存から再開</button>
