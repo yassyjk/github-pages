@@ -55,32 +55,65 @@
       .export-import-bar {
         margin-bottom: 10px;
       }
+      button {
+        margin: 5px;
+        padding: 5px 10px;
+      }
     </style>
   </head>
   <body>
     <h3>アイデアマップ</h3>
-    <div class="export-import-bar">
-      <button id="export-btn">エクスポート</button>
-      <input
-        type="file"
-        id="import-input"
-        accept=".json"
-        style="display: none"
-      />
-      <button id="import-btn">インポート</button>
-    </div>
-    <div id="root"></div>
+    <div id="app-container"></div>
+
     <!-- ReactとBabel CDN -->
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="text/babel">
-      let nodeSeq = 1;
-      function createNode(name = "項目", children = [], collapsed = false) {
-        return { id: nodeSeq++, name, children, collapsed };
+      // 初期ツリー定義
+      const initialTreeData = {
+        root: {
+          id: 1,
+          name: "初期表示",
+          collapsed: false,
+          children: [
+            {
+              id: 2,
+              name: "子1",
+              collapsed: false,
+              children: [
+                { id: 3, name: "孫1-1", collapsed: false, children: [] },
+              ],
+            },
+            {
+              id: 4,
+              name: "子2",
+              collapsed: false,
+              children: [
+                { id: 5, name: "孫2-1", collapsed: false, children: [] },
+              ],
+            },
+          ],
+        },
+      };
+
+      // ツリー全体から最大IDを取得するヘルパー関数
+      function getMaxId(node) {
+        let maxId = node.id;
+        for (const child of node.children || []) {
+          maxId = Math.max(maxId, getMaxId(child));
+        }
+        return maxId;
       }
+
       function getSubtreeHeight(node, nodeHeight = 60, nodeGap = 20) {
-        if (node.collapsed || node.children.length === 0) return nodeHeight;
+        if (
+          !node ||
+          node.collapsed ||
+          !node.children ||
+          node.children.length === 0
+        )
+          return nodeHeight;
         const total = node.children
           .map((child) => getSubtreeHeight(child, nodeHeight, nodeGap))
           .reduce((a, b) => a + b, 0);
@@ -98,10 +131,14 @@
         isRoot = false,
         xOffset = 150
       ) {
-        // const isMobile = window.matchMedia("(max-width: 767px)").matches;
-        // const xOffset = isMobile ? 130 : 170;
-        // rootかつ、子ノードがあり、rootノードが展開している場合
-        if (isRoot && node.children.length > 0 && !node.collapsed) {
+        if (!node) return positions;
+
+        if (
+          isRoot &&
+          node.children &&
+          node.children.length > 0 &&
+          !node.collapsed
+        ) {
           let childYs = [];
           let childY = 0;
           node.children.forEach((child) => {
@@ -119,21 +156,21 @@
             childYs.push(positions[child.id].y);
             childY += getSubtreeHeight(child, nodeHeight, nodeGap) + nodeGap;
           });
-          // rootのy座標は、子ノードの中央
           const maxY = childYs.length > 0 ? Math.max(...childYs) : 0;
           y = maxY / 2;
           positions[node.id] = { x, y, node, parent };
-        }
-        // rootかつ、子ノードがあり、rootノードが折りたたまれている場合
-        else if (isRoot && node.children.length > 0 && node.collapsed) {
+        } else if (
+          isRoot &&
+          node.children &&
+          node.children.length > 0 &&
+          node.collapsed
+        ) {
           positions[node.id] = { x, y, node, parent };
-        } // root以外の子ノードの場合
-        else {
-          const subtreeHeight = getSubtreeHeight(node, nodeHeight, nodeGap);
+        } else {
           positions[node.id] = { x, y, node, parent };
-          if (!node.collapsed && node.children.length > 0) {
-            let childY = isRoot ? 0 : y; //　rootの子の場合は、y=0から始める。一つ目の孫ノードは、子ノードと同じY
-            node.children.forEach((child, index) => {
+          if (!node.collapsed && node.children && node.children.length > 0) {
+            let childY = isRoot ? 0 : y;
+            node.children.forEach((child) => {
               layoutTree(
                 child,
                 x + xOffset,
@@ -142,10 +179,9 @@
                 node,
                 nodeHeight,
                 nodeGap,
-                false, //子はfalse
+                false,
                 xOffset
               );
-
               const childSubtreeHeight = getSubtreeHeight(
                 child,
                 nodeHeight,
@@ -161,7 +197,6 @@
       function CollapseCircle({ x, y, hasChildren, collapsed, onClick }) {
         let fillColor = "#fff";
         if (hasChildren) fillColor = collapsed ? "limegreen" : "#888";
-
         return (
           <circle
             cx={x}
@@ -185,11 +220,11 @@
         setEditingId,
       }) {
         const [tempName, setTempName] = React.useState(
-          node.name.length > 0 ? node.name : "名前なし"
+          node.name && node.name.length > 0 ? node.name : "名前なし"
         );
 
         React.useEffect(() => {
-          if (node.name.length > 0) setTempName(node.name);
+          if (node.name && node.name.length > 0) setTempName(node.name);
           else setTempName("名前なし");
         }, [node.name, editingId]);
 
@@ -201,11 +236,12 @@
             <CollapseCircle
               x={circleX}
               y={circleY}
-              hasChildren={node.children.length > 0}
+              hasChildren={node.children && node.children.length > 0}
               collapsed={node.collapsed}
               onClick={(e) => {
                 e.stopPropagation();
-                if (node.children.length > 0) onToggle(node.id);
+                if (node.children && node.children.length > 0)
+                  onToggle(node.id);
               }}
             />
             {editingId === node.id ? (
@@ -302,63 +338,224 @@
         return <g>{lines}</g>;
       }
 
-      function MindMapApp() {
-        const [root, setRoot] = React.useState(
-          createNode("中心", [
-            createNode("子1", [createNode("孫1-1"), createNode("孫1-2")]),
-            createNode("子2", [createNode("孫2-1"), createNode("孫2-2")]),
-          ])
-        );
+      function editNode(node, id, fn) {
+        if (node.id === id) return fn(node);
+        return {
+          ...node,
+          children: (node.children || []).map((child) =>
+            editNode(child, id, fn)
+          ),
+        };
+      }
 
+      function deleteNode(node, id) {
+        return {
+          ...node,
+          children: (node.children || [])
+            .filter((child) => child.id !== id)
+            .map((child) => deleteNode(child, id)),
+        };
+      }
+
+      function MindMapApp() {
+        // 初期rootデータを取得
+        const getSavedRoot = () => {
+          try {
+            const saved = localStorage.getItem("mindmapTemp");
+            if (saved) {
+              const data = JSON.parse(saved);
+              if (data && data.root) {
+                return data.root;
+              }
+            }
+          } catch (e) {
+            console.error("Failed to load from localStorage:", e);
+          }
+          return JSON.parse(JSON.stringify(initialTreeData.root));
+        };
+
+        // 初期nextNodeIdを計算
+        const getInitialNextNodeId = () => {
+          try {
+            const saved = localStorage.getItem("mindmapTemp");
+            if (saved) {
+              const data = JSON.parse(saved);
+              if (data && data.root) {
+                return getMaxId(data.root) + 1;
+              }
+            }
+          } catch (e) {
+            console.error("Failed to calculate nextNodeId:", e);
+          }
+          return getMaxId(initialTreeData.root) + 1;
+        };
+
+        const [root, setRoot] = React.useState(getSavedRoot());
+        const [nextNodeId, setNextNodeId] = React.useState(
+          getInitialNextNodeId()
+        );
         const [editingId, setEditingId] = React.useState(null);
         const [isMobile, setIsMobile] = React.useState(
           window.matchMedia("(max-width: 767px)").matches
+        );
+
+        // ノードを生成する関数
+        const createNode = React.useCallback(
+          (name = "項目", children = [], collapsed = false) => {
+            const newId = nextNodeId;
+            setNextNodeId((prev) => prev + 1);
+            return {
+              id: newId,
+              name,
+              children: children || [],
+              collapsed,
+            };
+          },
+          [nextNodeId]
         );
 
         React.useEffect(() => {
           const handler = () => {
             setIsMobile(window.matchMedia("(max-width: 767px)").matches);
           };
-
           window.addEventListener("resize", handler);
           return () => window.removeEventListener("resize", handler);
         }, []);
 
-        const handleEdit = (id, newName) => {
-          setRoot(editNode(root, id, (node) => ({ ...node, name: newName })));
-        };
-
-        const handleAdd = (id) => {
-          setRoot(
-            editNode(root, id, (node) => ({
-              ...node,
-              children: [...node.children, createNode("項目")],
-            }))
+        const handleEdit = React.useCallback((id, newName) => {
+          setRoot((prev) =>
+            editNode(prev, id, (node) => ({ ...node, name: newName }))
           );
-        };
+        }, []);
 
-        const handleDelete = (id) => {
-          if (root.id === id) return;
-          if (window.confirm("本当にこのノードを削除しますか？"))
-            setRoot(deleteNode(root, id));
-        };
+        const handleAdd = React.useCallback(
+          (id) => {
+            setRoot((prev) =>
+              editNode(prev, id, (node) => ({
+                ...node,
+                children: [...(node.children || []), createNode("項目")],
+              }))
+            );
+          },
+          [createNode]
+        );
 
-        const handleToggle = (id) => {
-          setRoot(
-            editNode(root, id, (node) => ({
+        const handleDelete = React.useCallback(
+          (id) => {
+            if (root.id === id) return;
+            if (window.confirm("本当にこのノードを削除しますか？")) {
+              setRoot((prev) => deleteNode(prev, id));
+            }
+          },
+          [root.id]
+        );
+
+        const handleToggle = React.useCallback((id) => {
+          setRoot((prev) =>
+            editNode(prev, id, (node) => ({
               ...node,
               collapsed: !node.collapsed,
             }))
           );
-        };
+        }, []);
 
+        // エクスポート処理
+        const handleExport = React.useCallback(() => {
+          const exportObj = { nextNodeId, root };
+          const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
+            type: "application/json",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "mindmap.json";
+          a.click();
+          URL.revokeObjectURL(url);
+        }, [nextNodeId, root]);
+
+        // インポート処理
+        const handleImport = React.useCallback((event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            try {
+              const data = JSON.parse(evt.target.result);
+              if (data && data.root) {
+                const maxId = getMaxId(data.root);
+                setNextNodeId(Math.max(data.nextNodeId || 0, maxId + 1));
+                setRoot(data.root);
+                localStorage.setItem(
+                  "mindmapTemp",
+                  JSON.stringify({
+                    nextNodeId: Math.max(data.nextNodeId || 0, maxId + 1),
+                    root: data.root,
+                  })
+                );
+              } else {
+                alert("不正なデータです");
+              }
+            } catch (err) {
+              alert("読み込み失敗: " + err);
+            }
+          };
+          reader.readAsText(file);
+          // ファイル選択をリセット
+          event.target.value = null;
+        }, []);
+
+        // 一時保存処理
+        const handleSaveTemp = React.useCallback(() => {
+          const tempData = { nextNodeId, root };
+          localStorage.setItem("mindmapTemp", JSON.stringify(tempData));
+          alert("一時保存しました！");
+        }, [nextNodeId, root]);
+
+        // 一時保存から再開処理
+        const handleResume = React.useCallback(() => {
+          const saved = localStorage.getItem("mindmapTemp");
+          if (saved) {
+            try {
+              const data = JSON.parse(saved);
+              if (data && data.root) {
+                const maxId = getMaxId(data.root);
+                setNextNodeId(Math.max(data.nextNodeId || 0, maxId + 1));
+                setRoot(data.root);
+                setTimeout(() => {
+                  alert("保存データを読み込みました！");
+                }, 100);
+              } else {
+                alert("保存データが不正です");
+              }
+            } catch (err) {
+              alert("読み込み失敗: " + err);
+            }
+          } else {
+            alert("保存されたデータが見つかりません");
+          }
+        }, []);
+
+        // 新規作成処理
+        const handleNew = React.useCallback(() => {
+          if (
+            window.confirm(
+              "新規作成します。現在の内容は失われます。よろしいですか？"
+            )
+          ) {
+            const initialRoot = JSON.parse(
+              JSON.stringify(initialTreeData.root)
+            );
+            setNextNodeId(getMaxId(initialRoot) + 1);
+            setRoot(initialRoot);
+          }
+        }, []);
+
+        // SVGのレイアウト計算
         const nodeHeight = 60;
         const nodeGap = 20;
-        // 全体の高さ
         const totalTreeHeight = getSubtreeHeight(root, nodeHeight, nodeGap);
-        // rootのy位置は、全体の高さの半分
         const rootY = totalTreeHeight / 2;
-
         const xOffset = isMobile ? 130 : 170;
 
         const positions = layoutTree(
@@ -372,91 +569,67 @@
           true,
           xOffset
         );
+
+        // SVGのサイズ計算（防御的に）
         const yValues = Object.values(positions).map((pos) => pos.y);
-        const minY = Math.min(...yValues, 0);
-        const maxY = Math.max(...yValues, 0);
-        const svgHeight = maxY - minY + 130;
+        const minY = yValues.length ? Math.min(...yValues, 0) : 0;
+        const maxY = yValues.length ? Math.max(...yValues, 0) : 0;
+        const svgHeight = Math.max(maxY - minY + 130, 200); // 最小高さを確保
         const yOffset = -minY + 50;
-        React.useEffect(() => {
-          document.getElementById("export-btn").onclick = () => {
-            const exportObj = { nodeSeq, root };
-            const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
-              type: "application/json",
-            });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = "mindmap.json";
-            a.click();
-            URL.revokeObjectURL(url);
-          };
-          document.getElementById("import-btn").onclick = () => {
-            document.getElementById("import-input").click();
-          };
-          document.getElementById("import-input").onchange = (e) => {
-            const file = e.target.files[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (evt) => {
-              try {
-                const data = JSON.parse(evt.target.result);
-                if (data && data.root) {
-                  nodeSeq = data.nodeSeq || 1;
-                  setRoot(data.root);
-                } else {
-                  alert("不正なデータです");
-                }
-              } catch (err) {
-                alert("読み込み失敗: " + err);
-              }
-            };
-            reader.readAsText(file);
-          };
-        }, [root]);
+
         const xValues = Object.values(positions).map((pos) => pos.x);
-        const maxX = Math.max(...xValues, 0);
-        const svgWidth = maxX + 120;
+        const maxX = xValues.length ? Math.max(...xValues, 0) : 0;
+        const svgWidth = Math.max(maxX + 120, 300); // 最小幅を確保
+
         return (
-          <div className="mindmap-container">
-            <svg width={svgWidth} height={svgHeight} className="mindmap-svg">
-              <g transform={`translate(0,${yOffset})`}>
-                <MindMapLinks positions={positions} />
-                {Object.values(positions).map((pos) => (
-                  <MindMapNode
-                    key={pos.node.id}
-                    node={pos.node}
-                    pos={{ ...pos, y: pos.y }}
-                    onEdit={handleEdit}
-                    onAdd={handleAdd}
-                    onDelete={handleDelete}
-                    onToggle={handleToggle}
-                    editingId={editingId}
-                    setEditingId={setEditingId}
-                  />
-                ))}
-              </g>
-            </svg>
-          </div>
+          <>
+            <div className="export-import-bar">
+              <button onClick={handleExport}>エクスポートして保存</button>
+              <input
+                type="file"
+                id="import-input"
+                accept=".json"
+                style={{ display: "none" }}
+                onChange={handleImport}
+              />
+              <button
+                onClick={() => document.getElementById("import-input").click()}
+              >
+                インポート
+              </button>
+              <br />
+              <button onClick={handleSaveTemp}>一時保存</button>
+              <button onClick={handleResume}>一時保存から再開</button>
+              <br />
+              <button onClick={handleNew}>新規</button>
+            </div>
+            <div className="mindmap-container">
+              <svg width={svgWidth} height={svgHeight} className="mindmap-svg">
+                <g transform={`translate(0,${yOffset})`}>
+                  <MindMapLinks positions={positions} />
+                  {Object.values(positions).map((pos) => (
+                    <MindMapNode
+                      key={pos.node.id}
+                      node={pos.node}
+                      pos={{ ...pos, y: pos.y }}
+                      onEdit={handleEdit}
+                      onAdd={handleAdd}
+                      onDelete={handleDelete}
+                      onToggle={handleToggle}
+                      editingId={editingId}
+                      setEditingId={setEditingId}
+                    />
+                  ))}
+                </g>
+              </svg>
+            </div>
+          </>
         );
       }
 
-      function editNode(node, id, fn) {
-        if (node.id === id) return fn(node);
-        return {
-          ...node,
-          children: node.children.map((child) => editNode(child, id, fn)),
-        };
-      }
-
-      function deleteNode(node, id) {
-        return {
-          ...node,
-          children: node.children
-            .filter((child) => child.id !== id)
-            .map((child) => deleteNode(child, id)),
-        };
-      }
-      const root = ReactDOM.createRoot(document.getElementById("root"));
+      const root = ReactDOM.createRoot(
+        document.getElementById("app-container")
+      );
       root.render(<MindMapApp />);
     </script>
   </body>
