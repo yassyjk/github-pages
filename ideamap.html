@@ -219,13 +219,10 @@
         editingId,
         setEditingId,
       }) {
-        const [tempName, setTempName] = React.useState(
-          node.name && node.name.length > 0 ? node.name : "名前なし"
-        );
+        const [tempName, setTempName] = React.useState(node.name || "");
 
         React.useEffect(() => {
-          if (node.name && node.name.length > 0) setTempName(node.name);
-          else setTempName("名前なし");
+          setTempName(node.name || "");
         }, [node.name, editingId]);
 
         const circleX = 0,
@@ -250,18 +247,14 @@
                   className="node-edit"
                   type="text"
                   value={tempName}
-                  onChange={(e) =>
-                    setTempName(
-                      e.target.value.length > 0 ? e.target.value : "名前なし"
-                    )
-                  }
+                  onChange={(e) => setTempName(e.target.value)}
                   onBlur={() => {
-                    onEdit(node.id, tempName);
+                    onEdit(node.id, tempName.trim() === "" ? "空" : tempName);
                     setEditingId(null);
                   }}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      onEdit(node.id, tempName);
+                      onEdit(node.id, tempName.trim() === "" ? "空" : tempName);
                       setEditingId(null);
                     }
                   }}
