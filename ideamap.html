@@ -45,8 +45,6 @@
       }
       .collapse-circle {
         cursor: pointer;
-        stroke: #888;
-        stroke-width: 2;
         transition: fill 0.2s;
       }
       .collapse-circle.has-children {
@@ -202,6 +200,8 @@
             cx={x}
             cy={y}
             r={9}
+            stroke="#888" //丸枠
+            strokeWidth={2} //丸枠の太さ
             className="collapse-circle"
             fill={fillColor}
             onClick={hasChildren ? onClick : undefined}
@@ -506,7 +506,15 @@
             return;
           }
 
-          // SVGをシリアライズ
+          // 1. ボタンを非表示にする
+          const btns = svgElem.querySelectorAll(".node-btn");
+          const prevDisplays = [];
+          btns.forEach((btn, i) => {
+            prevDisplays[i] = btn.style.display;
+            btn.style.display = "none";
+          });
+
+          // 2. SVGをシリアライズ
           const serializer = new XMLSerializer();
           let source = serializer.serializeToString(svgElem);
 
@@ -525,22 +533,23 @@
           const image64 = "data:image/svg+xml;base64," + svg64;
 
           const img = new window.Image();
-          // SVGのサイズを取得
           const width = svgElem.width.baseVal.value || 800;
           const height = svgElem.height.baseVal.value || 600;
           img.onload = function () {
-            // Canvasを作成
             const canvas = document.createElement("canvas");
             canvas.width = width;
             canvas.height = height;
             const ctx = canvas.getContext("2d");
-            // 背景白
             ctx.fillStyle = "#fff";
             ctx.fillRect(0, 0, width, height);
             ctx.drawImage(img, 0, 0, width, height);
 
-            // PNGとしてダウンロード
             canvas.toBlob((blob) => {
+              // 4. ボタンを元に戻す
+              btns.forEach((btn, i) => {
+                btn.style.display = prevDisplays[i];
+              });
+
               if (blob) {
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
@@ -552,6 +561,10 @@
             }, "image/png");
           };
           img.onerror = function () {
+            // 4. ボタンを元に戻す
+            btns.forEach((btn, i) => {
+              btn.style.display = prevDisplays[i];
+            });
             alert("画像変換に失敗しました");
           };
           img.src = image64;
