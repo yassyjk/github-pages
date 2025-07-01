@@ -68,6 +68,49 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="text/babel">
+      // --- ユーティリティ: マークダウン変換 ---
+      // ツリー→Markdown
+      function treeToMarkdown(node, depth = 0) {
+        let md = `${"  ".repeat(depth)}- ${node.name}\n`;
+        if (node.children && node.children.length > 0) {
+          for (const child of node.children) {
+            md += treeToMarkdown(child, depth + 1);
+          }
+        }
+        return md;
+      }
+      // Markdown→ツリー
+      function markdownToTree(md) {
+        const lines = md.split("\n").filter((line) => line.trim().length > 0);
+        const stack = [];
+        let root = null;
+        let nodeId = 1;
+        function createNode(name) {
+          return { id: nodeId++, name, collapsed: false, children: [] };
+        }
+        for (const line of lines) {
+          const match = line.match(/^(\s*)-\s+(.*)$/);
+          if (!match) continue;
+          const indent = match[1].length / 2; // 2スペース単位
+          const name = match[2];
+          const node = createNode(name);
+          if (indent === 0) {
+            root = node;
+            stack.length = 0;
+            stack.push({ node, indent });
+          } else {
+            while (stack.length && stack[stack.length - 1].indent >= indent)
+              stack.pop();
+            if (stack.length) {
+              stack[stack.length - 1].node.children.push(node);
+            }
+            stack.push({ node, indent });
+          }
+        }
+        return root;
+      }
+      // --- ここまでユーティリティ ---
+
       // 初期ツリー定義
       const initialTreeData = {
         root: {
@@ -570,6 +613,49 @@
           img.src = image64;
         }, []);
 
+        // --- Markdownエクスポート ---
+        const handleExportMarkdown = React.useCallback(() => {
+          const md = treeToMarkdown(root);
+          const blob = new Blob([md], { type: "text/markdown" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "mindmap.md";
+          a.click();
+          URL.revokeObjectURL(url);
+        }, [root]);
+
+        // --- Markdownインポート ---
+        const handleImportMarkdown = React.useCallback((event) => {
+          const file = event.target.files[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            try {
+              const md = evt.target.result;
+              const tree = markdownToTree(md);
+              if (tree) {
+                const maxId = getMaxId(tree);
+                setNextNodeId(maxId + 1);
+                setRoot(tree);
+                localStorage.setItem(
+                  "mindmapTemp",
+                  JSON.stringify({
+                    nextNodeId: maxId + 1,
+                    root: tree,
+                  })
+                );
+              } else {
+                alert("マークダウンからツリーを生成できませんでした");
+              }
+            } catch (err) {
+              alert("読み込み失敗: " + err);
+            }
+          };
+          reader.readAsText(file);
+          event.target.value = null;
+        }, []);
+
         // 一時保存処理
         const handleSaveTemp = React.useCallback(() => {
           const tempData = { nextNodeId, root };
@@ -649,26 +735,57 @@
         return (
           <>
             <div className="export-import-bar">
+              {/* エクスポート（JSON） */}
               <button onClick={handleExport}>エクスポートして保存</button>
+
+              {/* インポート（JSON） */}
               <input
                 type="file"
-                id="import-input"
-                accept=".json"
+                id="import-json-input"
+                accept=".json,application/json"
                 style={{ display: "none" }}
                 onChange={handleImport}
               />
               <button
-                onClick={() => document.getElementById("import-input").click()}
+                onClick={() =>
+                  document.getElementById("import-json-input").click()
+                }
               >
                 インポート
               </button>
+
+              {/* エクスポート（Markdown） */}
+              <button onClick={handleExportMarkdown}>Markdownで保存</button>
+
+              {/* インポート（Markdown） */}
+              <input
+                type="file"
+                id="import-md-input"
+                accept=".md,text/markdown"
+                style={{ display: "none" }}
+                onChange={handleImportMarkdown}
+              />
+              <button
+                onClick={() =>
+                  document.getElementById("import-md-input").click()
+                }
+              >
+                Markdownを読み込む
+              </button>
+
+              {/* PNGエクスポート */}
               <button onClick={handleExportPNG}>PNG画像で保存</button>
               <br />
+
+              {/* 一時保存・再開 */}
               <button onClick={handleSaveTemp}>一時保存</button>
               <button onClick={handleResume}>一時保存から再開</button>
               <br />
+
+              {/* 新規 */}
               <button onClick={handleNew}>新規</button>
             </div>
+
             <div className="mindmap-container">
               <svg width={svgWidth} height={svgHeight} className="mindmap-svg">
                 <g transform={`translate(0,${yOffset})`}>
