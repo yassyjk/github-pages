@@ -337,14 +337,16 @@
                 ))}
               </text>
             )}
-            <foreignObject x={25} y={-10} width={30} height={50}>
+            <foreignObject x={25} y={-10} width={70} height={50}>
               <div
                 style={{
                   display: "flex",
-                  flexDirection: "column",
+                  flexDirection: "row",
                   alignItems: "center",
                   justifyContent: "flex-start",
                   height: "50px",
+                  width: "100px",
+                  gap: "15px",
                 }}
               >
                 <div
@@ -531,15 +533,16 @@
           URL.revokeObjectURL(url);
         }, [nextNodeId, root]);
 
-        // インポート処理
         const handleImport = React.useCallback((event) => {
           const file = event.target.files[0];
           if (!file) return;
 
           const reader = new FileReader();
           reader.onload = (evt) => {
-            try {
-              const data = JSON.parse(evt.target.result);
+            const content = evt.target.result;
+
+            // JSONインポート処理
+            function importJson(data) {
               if (data && data.root) {
                 const maxId = getMaxId(data.root);
                 setNextNodeId(Math.max(data.nextNodeId || 0, maxId + 1));
@@ -554,14 +557,90 @@
               } else {
                 alert("不正なデータです");
               }
-            } catch (err) {
-              alert("読み込み失敗: " + err);
+            }
+
+            // Markdownインポート処理
+            function importMarkdown(md) {
+              const tree = markdownToTree(md);
+              if (tree) {
+                const maxId = getMaxId(tree);
+                setNextNodeId(maxId + 1);
+                setRoot(tree);
+                localStorage.setItem(
+                  "mindmapTemp",
+                  JSON.stringify({
+                    nextNodeId: maxId + 1,
+                    root: tree,
+                  })
+                );
+              } else {
+                alert("マークダウンからツリーを生成できませんでした");
+              }
+            }
+
+            // 拡張子で判別
+            if (file.name.endsWith(".json")) {
+              try {
+                const data = JSON.parse(content);
+                importJson(data);
+              } catch (err) {
+                alert("JSONの読み込みに失敗しました: " + err);
+              }
+            } else if (file.name.endsWith(".md")) {
+              try {
+                importMarkdown(content);
+              } catch (err) {
+                alert("Markdownの読み込みに失敗しました: " + err);
+              }
+            } else {
+              // 内容で判別する例（拡張子がない場合など）
+              try {
+                const data = JSON.parse(content);
+                importJson(data);
+              } catch {
+                try {
+                  importMarkdown(content);
+                } catch (err) {
+                  alert("ファイルの読み込みに失敗しました: " + err);
+                }
+              }
             }
           };
           reader.readAsText(file);
-          // ファイル選択をリセット
           event.target.value = null;
         }, []);
+
+        // インポート処理
+        // const handleImport = React.useCallback((event) => {
+        //   const file = event.target.files[0];
+        //   if (!file) return;
+
+        //   const reader = new FileReader();
+        //   reader.onload = (evt) => {
+        //     try {
+        //       const data = JSON.parse(evt.target.result);
+        //       if (data && data.root) {
+        //         const maxId = getMaxId(data.root);
+        //         setNextNodeId(Math.max(data.nextNodeId || 0, maxId + 1));
+        //         setRoot(data.root);
+        //         localStorage.setItem(
+        //           "mindmapTemp",
+        //           JSON.stringify({
+        //             nextNodeId: Math.max(data.nextNodeId || 0, maxId + 1),
+        //             root: data.root,
+        //           })
+        //         );
+        //       } else {
+        //         alert("不正なデータです");
+        //       }
+        //     } catch (err) {
+        //       alert("読み込み失敗: " + err);
+        //     }
+        //   };
+        //   reader.readAsText(file);
+        //   // ファイル選択をリセット
+        //   event.target.value = null;
+        // }, []);
 
         // PNGとしてエクスポート処理
         const handleExportPNG = React.useCallback(() => {
@@ -648,35 +727,35 @@
         }, [root]);
 
         // --- Markdownインポート ---
-        const handleImportMarkdown = React.useCallback((event) => {
-          const file = event.target.files[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-            try {
-              const md = evt.target.result;
-              const tree = markdownToTree(md);
-              if (tree) {
-                const maxId = getMaxId(tree);
-                setNextNodeId(maxId + 1);
-                setRoot(tree);
-                localStorage.setItem(
-                  "mindmapTemp",
-                  JSON.stringify({
-                    nextNodeId: maxId + 1,
-                    root: tree,
-                  })
-                );
-              } else {
-                alert("マークダウンからツリーを生成できませんでした");
-              }
-            } catch (err) {
-              alert("読み込み失敗: " + err);
-            }
-          };
-          reader.readAsText(file);
-          event.target.value = null;
-        }, []);
+        // const handleImportMarkdown = React.useCallback((event) => {
+        //   const file = event.target.files[0];
+        //   if (!file) return;
+        //   const reader = new FileReader();
+        //   reader.onload = (evt) => {
+        //     try {
+        //       const md = evt.target.result;
+        //       const tree = markdownToTree(md);
+        //       if (tree) {
+        //         const maxId = getMaxId(tree);
+        //         setNextNodeId(maxId + 1);
+        //         setRoot(tree);
+        //         localStorage.setItem(
+        //           "mindmapTemp",
+        //           JSON.stringify({
+        //             nextNodeId: maxId + 1,
+        //             root: tree,
+        //           })
+        //         );
+        //       } else {
+        //         alert("マークダウンからツリーを生成できませんでした");
+        //       }
+        //     } catch (err) {
+        //       alert("読み込み失敗: " + err);
+        //     }
+        //   };
+        //   reader.readAsText(file);
+        //   event.target.value = null;
+        // }, []);
 
         // 一時保存処理
         const handleSaveTemp = React.useCallback(() => {
@@ -758,45 +837,30 @@
           <>
             <div className="export-import-bar">
               {/* エクスポート（JSON） */}
-              <button onClick={handleExport}>エクスポートして保存</button>
+              <button onClick={handleExport}>json保存</button>
 
-              {/* インポート（JSON） */}
               <input
                 type="file"
-                id="import-json-input"
-                accept=".json,application/json"
+                id="import-file-input"
+                accept=".json,.md,application/json,text/markdown"
                 style={{ display: "none" }}
                 onChange={handleImport}
               />
               <button
                 onClick={() =>
-                  document.getElementById("import-json-input").click()
+                  document.getElementById("import-file-input").click()
                 }
               >
                 インポート
               </button>
 
-              {/* エクスポート（Markdown） */}
-              <button onClick={handleExportMarkdown}>Markdownで保存</button>
+              <br />
 
-              {/* インポート（Markdown） */}
-              <input
-                type="file"
-                id="import-md-input"
-                accept=".md,text/markdown"
-                style={{ display: "none" }}
-                onChange={handleImportMarkdown}
-              />
-              <button
-                onClick={() =>
-                  document.getElementById("import-md-input").click()
-                }
-              >
-                Markdownを読み込む
-              </button>
+              {/* エクスポート（Markdown） */}
+              <button onClick={handleExportMarkdown}>Markdown保存</button>
 
               {/* PNGエクスポート */}
-              <button onClick={handleExportPNG}>PNG画像で保存</button>
+              <button onClick={handleExportPNG}>PNG画像保存</button>
               <br />
 
               {/* 一時保存・再開 */}
