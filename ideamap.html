@@ -9,9 +9,12 @@
         font-family: sans-serif;
       }
       .node-edit {
-        width: 150px;
-        font-size: 18px;
+        width: 160px;
+        height: 50px;
+        font-size: 16px;
         padding: 2px;
+        resize: none;
+        word-wrap: break-word;
       }
       .mindmap-svg {
         border: 1px solid #ccc;
@@ -252,6 +255,21 @@
         );
       }
 
+      // textの折り返し
+      function wrapText(text, maxCharsPerLine = 8) {
+        const lines = [];
+        let current = "";
+        for (let c of text) {
+          current += c;
+          if (current.length >= maxCharsPerLine) {
+            lines.push(current);
+            current = "";
+          }
+        }
+        if (current) lines.push(current);
+        return lines;
+      }
+
       function MindMapNode({
         node,
         pos,
@@ -285,10 +303,10 @@
               }}
             />
             {editingId === node.id ? (
-              <foreignObject x={-50} y={15} width={170} height={30}>
-                <input
+              <foreignObject x={-50} y={15} width={170} height={60}>
+                <textarea
                   className="node-edit"
-                  type="text"
+                  placeholder="16文字まで"
                   value={tempName}
                   onChange={(e) => setTempName(e.target.value)}
                   onBlur={() => {
@@ -309,10 +327,14 @@
                 x={0}
                 y={35}
                 textAnchor="middle"
-                style={{ cursor: "pointer", fontSize: "16px" }}
+                style={{ cursor: "pointer", fontSize: "14px" }}
                 onClick={() => setEditingId(node.id)}
               >
-                {node.name}
+                {wrapText(node.name, 8).map((line, i) => (
+                  <tspan key={i} x={0} dy={i === 0 ? 0 : 20}>
+                    {line}
+                  </tspan>
+                ))}
               </text>
             )}
             <foreignObject x={25} y={-10} width={30} height={50}>
@@ -711,7 +733,7 @@
 
         const positions = layoutTree(
           root,
-          50,
+          70,
           rootY,
           {},
           null,
