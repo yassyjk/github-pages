@@ -839,6 +839,9 @@
               {/* エクスポート（JSON） */}
               <button onClick={handleExport}>json保存</button>
 
+              {/* エクスポート（Markdown） */}
+              <button onClick={handleExportMarkdown}>Markdown保存</button>
+
               <input
                 type="file"
                 id="import-file-input"
@@ -855,9 +858,6 @@
               </button>
 
               <br />
-
-              {/* エクスポート（Markdown） */}
-              <button onClick={handleExportMarkdown}>Markdown保存</button>
 
               {/* PNGエクスポート */}
               <button onClick={handleExportPNG}>PNG画像保存</button>
