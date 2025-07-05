@@ -9,12 +9,19 @@
         font-family: sans-serif;
       }
       .node-edit {
-        width: 160px;
-        height: 50px;
+        width: 140px; /* cols属性を優先 */
+        font-family: "monospace";
         font-size: 16px;
+        height: 45px;
         padding: 2px;
         resize: none;
-        word-wrap: break-word;
+        word-break: break-all; /* 追加: 英単語も折り返す */
+        margin-bottom: 4px;
+      }
+      .url-edit {
+        width: 140px;
+        font-size: 14px;
+        padding: 2px;
       }
       .mindmap-svg {
         border: 1px solid #ccc;
@@ -74,7 +81,9 @@
       // --- ユーティリティ: マークダウン変換 ---
       // ツリー→Markdown
       function treeToMarkdown(node, depth = 0) {
-        let md = `${"  ".repeat(depth)}- ${node.name}\n`;
+        let md = `${"  ".repeat(depth)}- ${node.name}${
+          node.url ? "[" + node.url + "]" : ""
+        }\n`;
         if (node.children && node.children.length > 0) {
           for (const child of node.children) {
             md += treeToMarkdown(child, depth + 1);
@@ -82,21 +91,24 @@
         }
         return md;
       }
+
       // Markdown→ツリー
       function markdownToTree(md) {
         const lines = md.split("\n").filter((line) => line.trim().length > 0);
         const stack = [];
         let root = null;
         let nodeId = 1;
-        function createNode(name) {
-          return { id: nodeId++, name, collapsed: false, children: [] };
+
+        function createNode(name, url) {
+          return { id: nodeId++, name, url, collapsed: false, children: [] };
         }
         for (const line of lines) {
-          const match = line.match(/^(\s*)-\s+(.*)$/);
+          const match = line.match(/^(\s*)-\s+([^\[]+?)(?:\s*\[([^\]]+)\])?$/);
           if (!match) continue;
           const indent = match[1].length / 2; // 2スペース単位
-          const name = match[2];
-          const node = createNode(name);
+          const name = match[2].trim();
+          const url = match[3] ? match[3].trim() : "";
+          const node = createNode(name, url);
           if (indent === 0) {
             root = node;
             stack.length = 0;
@@ -119,22 +131,37 @@
         root: {
           id: 1,
           name: "初期表示",
+          url: "",
           collapsed: false,
           children: [
             {
               id: 2,
               name: "子1",
+              url: "",
               collapsed: false,
               children: [
-                { id: 3, name: "孫1-1", collapsed: false, children: [] },
+                {
+                  id: 3,
+                  name: "孫1-1",
+                  url: "",
+                  collapsed: false,
+                  children: [],
+                },
               ],
             },
             {
               id: 4,
               name: "子2",
+              url: "",
               collapsed: false,
               children: [
-                { id: 5, name: "孫2-1", collapsed: false, children: [] },
+                {
+                  id: 5,
+                  name: "孫2-1",
+                  url: "",
+                  collapsed: false,
+                  children: [],
+                },
               ],
             },
           ],
@@ -150,7 +177,7 @@
         return maxId;
       }
 
-      function getSubtreeHeight(node, nodeHeight = 60, nodeGap = 20) {
+      function getSubtreeHeight(node, nodeHeight = 60, nodeGap = 50) {
         if (
           !node ||
           node.collapsed ||
@@ -171,7 +198,7 @@
         positions = {},
         parent = null,
         nodeHeight = 60,
-        nodeGap = 20,
+        nodeGap = 50,
         isRoot = false,
         xOffset = 150
       ) {
@@ -240,7 +267,7 @@
 
       function CollapseCircle({ x, y, hasChildren, collapsed, onClick }) {
         let fillColor = "#fff";
-        if (hasChildren) fillColor = collapsed ? "limegreen" : "#888";
+        if (hasChildren) fillColor = collapsed ? "orange" : "#888";
         return (
           <circle
             cx={x}
@@ -280,11 +307,50 @@
         editingId,
         setEditingId,
       }) {
+        // テキスト幅計算用
+        const textRef = React.useRef();
+        const [textWidth, setTextWidth] = React.useState(0);
+
         const [tempName, setTempName] = React.useState(node.name || "");
+        const [tempUrl, setTempUrl] = React.useState(node.url || "");
 
         React.useEffect(() => {
           setTempName(node.name || "");
+          setTempUrl(node.url || "");
+        }, [node.name, node.url, editingId]);
+
+        // テキスト幅を設定
+        React.useEffect(() => {
+          if (textRef.current) {
+            setTextWidth(textRef.current.getBBox().width);
+          }
         }, [node.name, editingId]);
+
+        // 編集確定処理
+        const confirmEdit = React.useCallback(() => {
+          onEdit(
+            node.id,
+            tempName.trim() === "" ? "空" : tempName,
+            tempUrl.trim()
+          );
+          setEditingId(null);
+        }, [node.id, tempName, tempUrl, onEdit, setEditingId]);
+
+        // onBlurで即確定
+        const handleBlur = (e) => {
+          // フォーカス先が同じforeignObject内かチェック
+          // e.relatedTargetはinput/textarea間の移動時に次の要素を指す
+          if (
+            e.relatedTarget &&
+            (e.relatedTarget.className === "node-edit" ||
+              e.relatedTarget.className === "url-edit")
+          ) {
+            // 他の編集フィールドに移動しただけなので何もしない
+            return;
+          }
+          // それ以外（枠外クリックや他のノードクリック）は確定
+          confirmEdit();
+        };
 
         const circleX = 0,
           circleY = 0;
@@ -303,32 +369,92 @@
               }}
             />
             {editingId === node.id ? (
-              <foreignObject x={-50} y={15} width={170} height={60}>
-                <textarea
-                  className="node-edit"
-                  placeholder="16文字まで"
-                  value={tempName}
-                  onChange={(e) => setTempName(e.target.value)}
-                  onBlur={() => {
-                    onEdit(node.id, tempName.trim() === "" ? "空" : tempName);
-                    setEditingId(null);
+              <foreignObject x={-50} y={15} width={170} height={100}>
+                <div style={{ display: "flex", flexDirection: "column" }}>
+                  <textarea
+                    className="node-edit"
+                    cols="8"
+                    placeholder="20字程度まで"
+                    value={tempName}
+                    onChange={(e) => setTempName(e.target.value)}
+                    onBlur={handleBlur}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        confirmEdit();
+                      }
+                    }}
+                    autoFocus
+                    tabIndex={0}
+                  />
+                  <input
+                    className="url-edit"
+                    type="text"
+                    placeholder="URLリンク(省略可)"
+                    value={tempUrl}
+                    onChange={(e) => setTempUrl(e.target.value)}
+                    onBlur={handleBlur}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        confirmEdit();
+                      }
+                    }}
+                    tabIndex={0}
+                  />
+                </div>
+              </foreignObject>
+            ) : node.url ? (
+              <a
+                xlinkHref={node.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ cursor: "pointer" }}
+              >
+                <text
+                  ref={textRef}
+                  x={0}
+                  y={35}
+                  textAnchor="middle"
+                  style={{
+                    cursor: "pointer",
+                    fontSize: "14px",
+                    textDecoration: "underline",
+                    fill: "blue",
+                    marginLeft: "10px",
                   }}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      onEdit(node.id, tempName.trim() === "" ? "空" : tempName);
-                      setEditingId(null);
+                  onClick={(e) => {
+                    if (e.button === 2) {
+                      e.preventDefault();
+                      setEditingId(node.id);
                     }
                   }}
-                  autoFocus
-                />
-              </foreignObject>
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setEditingId(node.id);
+                  }}
+                >
+                  {wrapText(node.name, 8).map((line, i) => (
+                    <tspan key={i} x={0} dy={i === 0 ? 0 : 20}>
+                      {line}
+                    </tspan>
+                  ))}
+                </text>
+              </a>
             ) : (
               <text
+                ref={textRef}
                 x={0}
                 y={35}
                 textAnchor="middle"
-                style={{ cursor: "pointer", fontSize: "14px" }}
+                style={{
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  marginLeft: "10px",
+                }}
                 onClick={() => setEditingId(node.id)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  setEditingId(node.id);
+                }}
               >
                 {wrapText(node.name, 8).map((line, i) => (
                   <tspan key={i} x={0} dy={i === 0 ? 0 : 20}>
@@ -337,42 +463,76 @@
                 ))}
               </text>
             )}
-            <foreignObject x={25} y={-10} width={70} height={50}>
-              <div
-                style={{
-                  display: "flex",
-                  flexDirection: "row",
-                  alignItems: "center",
-                  justifyContent: "flex-start",
-                  height: "50px",
-                  width: "100px",
-                  gap: "15px",
-                }}
+            {/* 編集ボタンをテキストの右端にforeignObjectで配置 */}
+            {editingId !== node.id && (
+              <foreignObject
+                x={textWidth / 2 + 10} // テキストの右端＋余白
+                y={20} // テキストのy座標に合わせる
+                width={24}
+                height={24}
+                style={{ overflow: "visible" }}
               >
                 <div
-                  className="node-btn add"
-                  title="子追加"
+                  title="編集"
+                  style={{
+                    width: 24,
+                    height: 24,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    fontSize: "18px",
+                  }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    onAdd(node.id);
+                    setEditingId(node.id);
                   }}
                 >
-                  ＋
+                  ✏️
                 </div>
-                {pos.parent && (
+              </foreignObject>
+            )}
+
+            {/* add/delボタン */}
+            {!editingId && (
+              <foreignObject x={25} y={-15} width={70} height={40}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "start",
+                    justifyContent: "flex-start",
+                    height: "30px",
+                    width: "100px",
+                    gap: "15px",
+                  }}
+                >
                   <div
-                    className="node-btn del"
-                    title="削除"
+                    className="node-btn add"
+                    title="子追加"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onDelete(node.id);
+                      onAdd(node.id);
                     }}
                   >
-                    －
+                    ＋
                   </div>
-                )}
-              </div>
-            </foreignObject>
+
+                  {pos.parent && (
+                    <div
+                      className="node-btn del"
+                      title="削除"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(node.id);
+                      }}
+                    >
+                      －
+                    </div>
+                  )}
+                </div>
+              </foreignObject>
+            )}
           </g>
         );
       }
@@ -421,7 +581,7 @@
         // 初期rootデータを取得
         const getSavedRoot = () => {
           try {
-            const saved = localStorage.getItem("mindmapTemp");
+            const saved = localStorage.getItem("ideamapTemp");
             if (saved) {
               const data = JSON.parse(saved);
               if (data && data.root) {
@@ -437,7 +597,7 @@
         // 初期nextNodeIdを計算
         const getInitialNextNodeId = () => {
           try {
-            const saved = localStorage.getItem("mindmapTemp");
+            const saved = localStorage.getItem("ideamapTemp");
             if (saved) {
               const data = JSON.parse(saved);
               if (data && data.root) {
@@ -482,9 +642,13 @@
           return () => window.removeEventListener("resize", handler);
         }, []);
 
-        const handleEdit = React.useCallback((id, newName) => {
+        const handleEdit = React.useCallback((id, newName, newUrl) => {
           setRoot((prev) =>
-            editNode(prev, id, (node) => ({ ...node, name: newName }))
+            editNode(prev, id, (node) => ({
+              ...node,
+              name: newName,
+              url: newUrl,
+            }))
           );
         }, []);
 
@@ -528,7 +692,7 @@
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = "mindmap.json";
+          a.download = "ideamap.json";
           a.click();
           URL.revokeObjectURL(url);
         }, [nextNodeId, root]);
@@ -548,7 +712,7 @@
                 setNextNodeId(Math.max(data.nextNodeId || 0, maxId + 1));
                 setRoot(data.root);
                 localStorage.setItem(
-                  "mindmapTemp",
+                  "ideamapTemp",
                   JSON.stringify({
                     nextNodeId: Math.max(data.nextNodeId || 0, maxId + 1),
                     root: data.root,
@@ -567,7 +731,7 @@
                 setNextNodeId(maxId + 1);
                 setRoot(tree);
                 localStorage.setItem(
-                  "mindmapTemp",
+                  "ideamapTemp",
                   JSON.stringify({
                     nextNodeId: maxId + 1,
                     root: tree,
@@ -609,38 +773,6 @@
           reader.readAsText(file);
           event.target.value = null;
         }, []);
-
-        // インポート処理
-        // const handleImport = React.useCallback((event) => {
-        //   const file = event.target.files[0];
-        //   if (!file) return;
-
-        //   const reader = new FileReader();
-        //   reader.onload = (evt) => {
-        //     try {
-        //       const data = JSON.parse(evt.target.result);
-        //       if (data && data.root) {
-        //         const maxId = getMaxId(data.root);
-        //         setNextNodeId(Math.max(data.nextNodeId || 0, maxId + 1));
-        //         setRoot(data.root);
-        //         localStorage.setItem(
-        //           "mindmapTemp",
-        //           JSON.stringify({
-        //             nextNodeId: Math.max(data.nextNodeId || 0, maxId + 1),
-        //             root: data.root,
-        //           })
-        //         );
-        //       } else {
-        //         alert("不正なデータです");
-        //       }
-        //     } catch (err) {
-        //       alert("読み込み失敗: " + err);
-        //     }
-        //   };
-        //   reader.readAsText(file);
-        //   // ファイル選択をリセット
-        //   event.target.value = null;
-        // }, []);
 
         // PNGとしてエクスポート処理
         const handleExportPNG = React.useCallback(() => {
@@ -698,7 +830,7 @@
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement("a");
                 a.href = url;
-                a.download = "mindmap.png";
+                a.download = "ideamap.png";
                 a.click();
                 URL.revokeObjectURL(url);
               }
@@ -721,52 +853,21 @@
           const url = URL.createObjectURL(blob);
           const a = document.createElement("a");
           a.href = url;
-          a.download = "mindmap.md";
+          a.download = "ideamap.md";
           a.click();
           URL.revokeObjectURL(url);
         }, [root]);
 
-        // --- Markdownインポート ---
-        // const handleImportMarkdown = React.useCallback((event) => {
-        //   const file = event.target.files[0];
-        //   if (!file) return;
-        //   const reader = new FileReader();
-        //   reader.onload = (evt) => {
-        //     try {
-        //       const md = evt.target.result;
-        //       const tree = markdownToTree(md);
-        //       if (tree) {
-        //         const maxId = getMaxId(tree);
-        //         setNextNodeId(maxId + 1);
-        //         setRoot(tree);
-        //         localStorage.setItem(
-        //           "mindmapTemp",
-        //           JSON.stringify({
-        //             nextNodeId: maxId + 1,
-        //             root: tree,
-        //           })
-        //         );
-        //       } else {
-        //         alert("マークダウンからツリーを生成できませんでした");
-        //       }
-        //     } catch (err) {
-        //       alert("読み込み失敗: " + err);
-        //     }
-        //   };
-        //   reader.readAsText(file);
-        //   event.target.value = null;
-        // }, []);
-
         // 一時保存処理
         const handleSaveTemp = React.useCallback(() => {
           const tempData = { nextNodeId, root };
-          localStorage.setItem("mindmapTemp", JSON.stringify(tempData));
+          localStorage.setItem("ideamapTemp", JSON.stringify(tempData));
           alert("一時保存しました！");
         }, [nextNodeId, root]);
 
         // 一時保存から再開処理
         const handleResume = React.useCallback(() => {
-          const saved = localStorage.getItem("mindmapTemp");
+          const saved = localStorage.getItem("ideamapTemp");
           if (saved) {
             try {
               const data = JSON.parse(saved);
@@ -805,7 +906,7 @@
 
         // SVGのレイアウト計算
         const nodeHeight = 60;
-        const nodeGap = 20;
+        const nodeGap = 50;
         const totalTreeHeight = getSubtreeHeight(root, nodeHeight, nodeGap);
         const rootY = totalTreeHeight / 2;
         const xOffset = isMobile ? 130 : 170;
@@ -826,7 +927,7 @@
         const yValues = Object.values(positions).map((pos) => pos.y);
         const minY = yValues.length ? Math.min(...yValues, 0) : 0;
         const maxY = yValues.length ? Math.max(...yValues, 0) : 0;
-        const svgHeight = Math.max(maxY - minY + 130, 200); // 最小高さを確保
+        const svgHeight = Math.max(maxY - minY + 150, 200); // 最小高さを確保
         const yOffset = -minY + 50;
 
         const xValues = Object.values(positions).map((pos) => pos.x);
@@ -881,7 +982,10 @@
                       key={pos.node.id}
                       node={pos.node}
                       pos={{ ...pos, y: pos.y }}
-                      onEdit={handleEdit}
+                      onEdit={(id, name, url) => {
+                        handleEdit(id, name, url);
+                        setEditingId(null);
+                      }}
                       onAdd={handleAdd}
                       onDelete={handleDelete}
                       onToggle={handleToggle}
