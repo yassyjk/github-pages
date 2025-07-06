@@ -7,6 +7,29 @@
         <style>
             body {
                 font-family: sans-serif;
+                margin: 0;
+                padding: 0;
+                background: rgb(249, 228, 189);
+                width: 100svw;
+                height: 100svh;
+                overflow: hidden;
+            }
+            .navbar {
+                position: sticky; /* スクロールしても上部に固定 */
+                top: 0;
+                left: 0;
+                width: 100svw;
+                height: 48px;
+                background: #faf5e5;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                z-index: 100;
+                padding: 0 0 0 16px;
+            }
+            ul li:hover {
+                background: #f0f0f0;
             }
             .node-edit {
                 width: 140px; /* cols属性を優先 */
@@ -30,7 +53,8 @@
             }
             .mindmap-container {
                 width: 100vw;
-                height: 100vh;
+                height: 96svh;
+                margin: 4px;
                 overflow: auto;
                 box-sizing: border-box;
             }
@@ -60,9 +84,6 @@
             .collapse-circle.has-children {
                 fill: #888;
             }
-            .export-import-bar {
-                margin-bottom: 10px;
-            }
             button {
                 margin: 5px;
                 padding: 5px 10px;
@@ -70,7 +91,6 @@
         </style>
     </head>
     <body>
-        <h3>アイデアマップ</h3>
         <div id="app-container"></div>
 
         <!-- ReactとBabel CDN -->
@@ -483,7 +503,7 @@
                                 }}
                             >
                                 {wrapText(node.name, 8).map((line, i) => (
-                                    <tspan key={i} x={0} dy={i === 0 ? 0 : 20}>
+                                    <tspan key={i} x={0} dy={i === 0 ? 0 : 16}>
                                         {line}
                                     </tspan>
                                 ))}
@@ -505,7 +525,7 @@
                                 }}
                             >
                                 {wrapText(node.name, 8).map((line, i) => (
-                                    <tspan key={i} x={0} dy={i === 0 ? 0 : 20}>
+                                    <tspan key={i} x={0} dy={i === 0 ? 0 : 16}>
                                         {line}
                                     </tspan>
                                 ))}
@@ -643,6 +663,50 @@
                 };
             }
 
+            function HamburgerMenu({ children }) {
+                const [menuOpen, setMenuOpen] = React.useState(false);
+                return (
+                    <div>
+                        <button
+                            id="hamburger-btn"
+                            style={{
+                                fontSize: 28,
+                                background: "none",
+                                border: "none",
+                                cursor: "pointer",
+                                position: "fixed",
+                                top: 0,
+                                right: 4,
+                                transform: "translateX(-100%)",
+                                zIndex: 2000,
+                            }}
+                            onClick={() => setMenuOpen((prev) => !prev)}
+                        >
+                            {menuOpen ? "×" : "≡"}
+                        </button>
+                        {menuOpen && (
+                            <div
+                                id="hamburger-menu"
+                                style={{
+                                    position: "absolute",
+                                    top: 40,
+                                    right: 28,
+                                    zIndex: 2000,
+                                    background: "#fff",
+                                    border: "1px solid #ccc",
+                                    borderRadius: 8,
+                                    padding: 10,
+                                    minWidth: 180,
+                                    boxShadow: "0 2px 8px #aaa",
+                                }}
+                            >
+                                {children}
+                            </div>
+                        )}
+                    </div>
+                );
+            }
+
             function MindMapApp() {
                 // 初期rootデータを取得
                 const getSavedRoot = () => {
@@ -709,6 +773,14 @@
                     window.addEventListener("resize", handler);
                     return () => window.removeEventListener("resize", handler);
                 }, []);
+
+                React.useEffect(() => {
+                    const tempData = { nextNodeId, root };
+                    localStorage.setItem(
+                        "ideamapTemp",
+                        JSON.stringify(tempData)
+                    );
+                }, [nextNodeId, root]);
 
                 const handleEdit = React.useCallback((id, newName, newUrl) => {
                     setRoot((prev) =>
@@ -968,42 +1040,6 @@
                     URL.revokeObjectURL(url);
                 }, [root]);
 
-                // 一時保存処理
-                const handleSaveTemp = React.useCallback(() => {
-                    const tempData = { nextNodeId, root };
-                    localStorage.setItem(
-                        "ideamapTemp",
-                        JSON.stringify(tempData)
-                    );
-                    alert("一時保存しました！");
-                }, [nextNodeId, root]);
-
-                // 一時保存から再開処理
-                const handleResume = React.useCallback(() => {
-                    const saved = localStorage.getItem("ideamapTemp");
-                    if (saved) {
-                        try {
-                            const data = JSON.parse(saved);
-                            if (data && data.root) {
-                                const maxId = getMaxId(data.root);
-                                setNextNodeId(
-                                    Math.max(data.nextNodeId || 0, maxId + 1)
-                                );
-                                setRoot(data.root);
-                                setTimeout(() => {
-                                    alert("保存データを読み込みました！");
-                                }, 100);
-                            } else {
-                                alert("保存データが不正です");
-                            }
-                        } catch (err) {
-                            alert("読み込み失敗: " + err);
-                        }
-                    } else {
-                        alert("保存されたデータが見つかりません");
-                    }
-                }, []);
-
                 // 新規作成処理
                 const handleNew = React.useCallback(() => {
                     if (
@@ -1055,50 +1091,81 @@
 
                 return (
                     <>
-                        <div className="export-import-bar">
-                            {/* エクスポート（JSON） */}
-                            <button onClick={handleExport}>json保存</button>
+                        <header className="navbar">
+                            <h3>アイデアマップ</h3>
 
-                            {/* エクスポート（Markdown） */}
-                            <button onClick={handleExportMarkdown}>
-                                Markdown保存
-                            </button>
+                            <HamburgerMenu>
+                                <ul
+                                    style={{
+                                        listStyle: "none",
+                                        margin: 0,
+                                        padding: 0,
+                                        minWidth: 150,
+                                    }}
+                                >
+                                    <li
+                                        style={{
+                                            padding: "8px 0",
+                                            cursor: "pointer",
+                                        }}
+                                        onClick={handleNew}
+                                    >
+                                        🆕 新規
+                                    </li>
+                                    <li
+                                        style={{
+                                            padding: "8px 0",
+                                            cursor: "pointer",
+                                            borderBottom: "1px solid #ccc",
+                                        }}
+                                        onClick={() =>
+                                            document
+                                                .getElementById(
+                                                    "import-file-input"
+                                                )
+                                                .click()
+                                        }
+                                    >
+                                        📂 インポート
+                                        <input
+                                            type="file"
+                                            id="import-file-input"
+                                            accept=".json,.md,application/json,text/markdown"
+                                            style={{ display: "none" }}
+                                            onChange={handleImport}
+                                        />
+                                    </li>
+                                    <li
+                                        style={{
+                                            padding: "8px 0",
+                                            cursor: "pointer",
+                                        }}
+                                        onClick={handleExport}
+                                    >
+                                        📄 json保存
+                                    </li>
+                                    <li
+                                        style={{
+                                            padding: "8px 0",
+                                            cursor: "pointer",
+                                        }}
+                                        onClick={handleExportMarkdown}
+                                    >
+                                        📝 Markdown保存
+                                    </li>
 
-                            <input
-                                type="file"
-                                id="import-file-input"
-                                accept=".json,.md,application/json,text/markdown"
-                                style={{ display: "none" }}
-                                onChange={handleImport}
-                            />
-                            <button
-                                onClick={() =>
-                                    document
-                                        .getElementById("import-file-input")
-                                        .click()
-                                }
-                            >
-                                インポート
-                            </button>
-
-                            <br />
-
-                            {/* PNGエクスポート */}
-                            <button onClick={handleExportPNG}>
-                                PNG画像保存
-                            </button>
-                            <br />
-
-                            {/* 一時保存・再開 */}
-                            <button onClick={handleSaveTemp}>一時保存</button>
-                            <button onClick={handleResume}>
-                                一時保存から再開
-                            </button>
-                            <br />
-
-                            {/* 新規 */}
-                            <button onClick={handleNew}>新規</button>
-                        </div>
+                                    <li
+                                        style={{
+                                            padding: "8px 0",
+                                            cursor: "pointer",
+                                        }}
+                                        onClick={handleExportPNG}
+                                    >
+                                        🖼 PNG画像保存
+                                    </li>
+                                </ul>
+                            </HamburgerMenu>
+                        </header>
 
                         <div className="mindmap-container">
                             <svg
