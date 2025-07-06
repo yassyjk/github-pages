@@ -968,8 +968,8 @@
                     }
 
                     // 現在の背景色を保存
-                    const prevBg = svgElem.style.background;
-                    svgElem.style.background = "transparent";
+                    // const prevBg = svgElem.style.background;
+                    //svgElem.style.background = "transparent";
 
                     // 1. ボタンを非表示にする
                     const btns = svgElem.querySelectorAll(".node-btn");
@@ -1008,11 +1008,14 @@
                         canvas.height = height;
                         const ctx = canvas.getContext("2d");
 
+                        ctx.fillStyle = "#fff";
+                        ctx.fillRect(0, 0, width, height);
+
                         ctx.drawImage(img, 0, 0, width, height);
 
                         canvas.toBlob((blob) => {
                             // 背景色を元に戻す
-                            svgElem.style.background = prevBg;
+                            // svgElem.style.background = prevBg;
 
                             // 4. ボタンを元に戻す
                             btns.forEach((btn, i) => {
