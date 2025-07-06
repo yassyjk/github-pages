@@ -328,6 +328,9 @@
                 editingId,
                 setEditingId,
             }) {
+                // textareaの末尾にfocus
+                const textareaRef = React.useRef(null);
+                const urlRef = React.useRef(null);
                 // テキスト幅計算用
                 const textRef = React.useRef();
                 const [textWidth, setTextWidth] = React.useState(0);
@@ -408,6 +411,7 @@
                                     }}
                                 >
                                     <textarea
+                                        ref={textareaRef}
                                         className="node-edit"
                                         cols="8"
                                         placeholder="20字程度まで"
@@ -415,6 +419,13 @@
                                         onChange={(e) =>
                                             setTempName(e.target.value)
                                         }
+                                        onFocus={(e) => {
+                                            const val = e.target.value;
+                                            e.target.setSelectionRange(
+                                                val.length,
+                                                val.length
+                                            );
+                                        }}
                                         onBlur={handleBlur}
                                         onKeyDown={(e) => {
                                             if (
@@ -428,6 +439,7 @@
                                         tabIndex={0}
                                     />
                                     <input
+                                        ref={urlRef}
                                         className="url-edit"
                                         type="text"
                                         placeholder="URLリンク(省略可)"
@@ -435,6 +447,13 @@
                                         onChange={(e) =>
                                             setTempUrl(e.target.value)
                                         }
+                                        onFocus={(e) => {
+                                            const val = e.target.value;
+                                            e.target.setSelectionRange(
+                                                val.length,
+                                                val.length
+                                            );
+                                        }}
                                         onBlur={handleBlur}
                                         onKeyDown={(e) => {
                                             if (e.key === "Enter") {
