@@ -666,22 +666,41 @@
             function HamburgerMenu({ children, setMenuOpen, menuOpen }) {
                 return (
                     <div>
-                        <button
-                            id="hamburger-btn"
-                            style={{
-                                fontSize: 28,
-                                background: "none",
-                                border: "none",
-                                cursor: "pointer",
-                                position: "fixed",
-                                top: 0,
-                                right: 32,
-                                zIndex: 2000,
-                            }}
-                            onClick={() => setMenuOpen((prev) => !prev)}
-                        >
-                            {menuOpen ? "×" : "≡"}
-                        </button>
+                        {menuOpen ? (
+                            <button
+                                id="hamburger-btn"
+                                style={{
+                                    fontSize: 28,
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    position: "fixed",
+                                    top: 0,
+                                    right: 32,
+                                    zIndex: 2000,
+                                }}
+                                onClick={() => setMenuOpen((prev) => !prev)}
+                            >
+                                ×
+                            </button>
+                        ) : (
+                            <button
+                                id="hamburger-btn"
+                                style={{
+                                    fontSize: 24,
+                                    background: "none",
+                                    border: "none",
+                                    cursor: "pointer",
+                                    position: "fixed",
+                                    top: 0,
+                                    right: 32,
+                                    zIndex: 2000,
+                                }}
+                                onClick={() => setMenuOpen((prev) => !prev)}
+                            >
+                                ≡
+                            </button>
+                        )}
                         {menuOpen && (
                             <div
                                 id="hamburger-menu"
