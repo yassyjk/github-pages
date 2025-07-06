@@ -877,7 +877,7 @@
 
                     // 現在の背景色を保存
                     const prevBg = svgElm.style.background;
-                    svgElm.style.background = "transparent";
+                    svgElem.style.background = "transparent";
 
                     // 1. ボタンを非表示にする
                     const btns = svgElem.querySelectorAll(".node-btn");
@@ -915,13 +915,12 @@
                         canvas.width = width;
                         canvas.height = height;
                         const ctx = canvas.getContext("2d");
-                        
+
                         ctx.drawImage(img, 0, 0, width, height);
 
                         canvas.toBlob((blob) => {
                             // 背景色を元に戻す
-                            svgElm.style.background = prevBg;
-
+                            svgElem.style.background = prevBg;
 
                             // 4. ボタンを元に戻す
                             btns.forEach((btn, i) => {
