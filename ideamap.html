@@ -663,8 +663,7 @@
                 };
             }
 
-            function HamburgerMenu({ children }) {
-                const [menuOpen, setMenuOpen] = React.useState(false);
+            function HamburgerMenu({ children, setMenuOpen, menuOpen }) {
                 return (
                     <div>
                         <button
@@ -747,6 +746,9 @@
                 const [isMobile, setIsMobile] = React.useState(
                     window.matchMedia("(max-width: 767px)").matches
                 );
+
+                // ハンバーガーメニューの開く・閉じる
+                const [menuOpen, setMenuOpen] = React.useState(false);
 
                 // ノードを生成する関数
                 const createNode = React.useCallback(
@@ -1093,7 +1095,10 @@
                         <header className="navbar">
                             <h3>アイデアマップ</h3>
 
-                            <HamburgerMenu>
+                            <HamburgerMenu
+                                menuOpen={menuOpen}
+                                setMenuOpen={setMenuOpen}
+                            >
                                 <ul
                                     style={{
                                         listStyle: "none",
@@ -1107,7 +1112,10 @@
                                             padding: "8px 0",
                                             cursor: "pointer",
                                         }}
-                                        onClick={handleNew}
+                                        onClick={() => {
+                                            handleNew();
+                                            setMenuOpen(false);
+                                        }}
                                     >
                                         🆕 新規
                                     </li>
@@ -1131,7 +1139,10 @@
                                             id="import-file-input"
                                             accept=".json,.md,application/json,text/markdown"
                                             style={{ display: "none" }}
-                                            onChange={handleImport}
+                                            onChange={(e) => {
+                                                handleImport(e);
+                                                setMenuOpen(false);
+                                            }}
                                         />
                                     </li>
                                     <li
@@ -1139,7 +1150,10 @@
                                             padding: "8px 0",
                                             cursor: "pointer",
                                         }}
-                                        onClick={handleExport}
+                                        onClick={() => {
+                                            handleExport();
+                                            setMenuOpen(false);
+                                        }}
                                     >
                                         📄 json保存
                                     </li>
@@ -1148,7 +1162,10 @@
                                             padding: "8px 0",
                                             cursor: "pointer",
                                         }}
-                                        onClick={handleExportMarkdown}
+                                        onClick={() => {
+                                            handleExportMarkdown();
+                                            setMenuOpen(false);
+                                        }}
                                     >
                                         📝 Markdown保存
                                     </li>
@@ -1158,7 +1175,10 @@
                                             padding: "8px 0",
                                             cursor: "pointer",
                                         }}
-                                        onClick={handleExportPNG}
+                                        onClick={() => {
+                                            handleExportPNG();
+                                            setMenuOpen(false);
+                                        }}
                                     >
                                         🖼 PNG画像保存
                                     </li>
