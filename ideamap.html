@@ -1,1046 +1,1115 @@
 <!DOCTYPE html>
 <html lang="ja">
-  <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta charset="UTF-8" />
-    <title>アイデアマップ</title>
-    <style>
-      body {
-        font-family: sans-serif;
-      }
-      .node-edit {
-        width: 140px; /* cols属性を優先 */
-        font-family: "monospace";
-        font-size: 16px;
-        height: 45px;
-        padding: 2px;
-        resize: none;
-        word-break: break-all; /* 追加: 英単語も折り返す */
-        margin-bottom: 4px;
-      }
-      .url-edit {
-        width: 140px;
-        font-size: 14px;
-        padding: 2px;
-      }
-      .mindmap-svg {
-        border: 1px solid #ccc;
-        background: #f9f9f9;
-        display: block;
-      }
-      .mindmap-container {
-        width: 100vw;
-        height: 100vh;
-        overflow: auto;
-        box-sizing: border-box;
-      }
-      .node-group:hover {
-        filter: drop-shadow(0 2px 2px #92b398);
-      }
-      .node-btn {
-        cursor: pointer;
-        font-size: 18px;
-        background: #fff;
-        border: 1px solid #aaa;
-        border-radius: 50%;
-        width: 22px;
-        height: 22px;
-        line-height: 20px;
-        text-align: center;
-        user-select: none;
-        margin-bottom: 6px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-      }
-      .collapse-circle {
-        cursor: pointer;
-        transition: fill 0.2s;
-      }
-      .collapse-circle.has-children {
-        fill: #888;
-      }
-      .export-import-bar {
-        margin-bottom: 10px;
-      }
-      button {
-        margin: 5px;
-        padding: 5px 10px;
-      }
-    </style>
-  </head>
-  <body>
-    <h3>アイデアマップ</h3>
-    <div id="app-container"></div>
-
-    <!-- ReactとBabel CDN -->
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script type="text/babel">
-      // --- ユーティリティ: マークダウン変換 ---
-      // ツリー→Markdown
-      function treeToMarkdown(node, depth = 0) {
-        let md = `${"  ".repeat(depth)}- ${node.name}${
-          node.url ? "[" + node.url + "]" : ""
-        }\n`;
-        if (node.children && node.children.length > 0) {
-          for (const child of node.children) {
-            md += treeToMarkdown(child, depth + 1);
-          }
-        }
-        return md;
-      }
-
-      // Markdown→ツリー
-      function markdownToTree(md) {
-        const lines = md.split("\n").filter((line) => line.trim().length > 0);
-        const stack = [];
-        let root = null;
-        let nodeId = 1;
-
-        function createNode(name, url) {
-          return { id: nodeId++, name, url, collapsed: false, children: [] };
-        }
-        for (const line of lines) {
-          const match = line.match(/^(\s*)-\s+([^\[]+?)(?:\s*\[([^\]]+)\])?$/);
-          if (!match) continue;
-          const indent = match[1].length / 2; // 2スペース単位
-          const name = match[2].trim();
-          const url = match[3] ? match[3].trim() : "";
-          const node = createNode(name, url);
-          if (indent === 0) {
-            root = node;
-            stack.length = 0;
-            stack.push({ node, indent });
-          } else {
-            while (stack.length && stack[stack.length - 1].indent >= indent)
-              stack.pop();
-            if (stack.length) {
-              stack[stack.length - 1].node.children.push(node);
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta charset="UTF-8" />
+        <title>アイデアマップ</title>
+        <style>
+            body {
+                font-family: sans-serif;
             }
-            stack.push({ node, indent });
-          }
-        }
-        return root;
-      }
-      // --- ここまでユーティリティ ---
+            .node-edit {
+                width: 140px; /* cols属性を優先 */
+                font-family: "monospace";
+                font-size: 16px;
+                height: 45px;
+                padding: 2px;
+                resize: none;
+                word-break: break-all; /* 追加: 英単語も折り返す */
+                margin-bottom: 4px;
+            }
+            .url-edit {
+                width: 140px;
+                font-size: 14px;
+                padding: 2px;
+            }
+            .mindmap-svg {
+                border: 1px solid #ccc;
+                background: #f9f9f9;
+                display: block;
+            }
+            .mindmap-container {
+                width: 100vw;
+                height: 100vh;
+                overflow: auto;
+                box-sizing: border-box;
+            }
+            .node-group:hover {
+                filter: drop-shadow(0 2px 2px #92b398);
+            }
+            .node-btn {
+                cursor: pointer;
+                font-size: 18px;
+                background: #fff;
+                border: 1px solid #aaa;
+                border-radius: 50%;
+                width: 22px;
+                height: 22px;
+                line-height: 20px;
+                text-align: center;
+                user-select: none;
+                margin-bottom: 6px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            .collapse-circle {
+                cursor: pointer;
+                transition: fill 0.2s;
+            }
+            .collapse-circle.has-children {
+                fill: #888;
+            }
+            .export-import-bar {
+                margin-bottom: 10px;
+            }
+            button {
+                margin: 5px;
+                padding: 5px 10px;
+            }
+        </style>
+    </head>
+    <body>
+        <h3>アイデアマップ</h3>
+        <div id="app-container"></div>
 
-      // 初期ツリー定義
-      const initialTreeData = {
-        root: {
-          id: 1,
-          name: "初期表示",
-          url: "",
-          collapsed: false,
-          children: [
-            {
-              id: 2,
-              name: "子1",
-              url: "",
-              collapsed: false,
-              children: [
-                {
-                  id: 3,
-                  name: "孫1-1",
-                  url: "",
-                  collapsed: false,
-                  children: [],
-                },
-              ],
-            },
-            {
-              id: 4,
-              name: "子2",
-              url: "",
-              collapsed: false,
-              children: [
-                {
-                  id: 5,
-                  name: "孫2-1",
-                  url: "",
-                  collapsed: false,
-                  children: [],
-                },
-              ],
-            },
-          ],
-        },
-      };
-
-      // ツリー全体から最大IDを取得するヘルパー関数
-      function getMaxId(node) {
-        let maxId = node.id;
-        for (const child of node.children || []) {
-          maxId = Math.max(maxId, getMaxId(child));
-        }
-        return maxId;
-      }
-
-      function getSubtreeHeight(node, nodeHeight = 60, nodeGap = 50) {
-        if (
-          !node ||
-          node.collapsed ||
-          !node.children ||
-          node.children.length === 0
-        )
-          return nodeHeight;
-        const total = node.children
-          .map((child) => getSubtreeHeight(child, nodeHeight, nodeGap))
-          .reduce((a, b) => a + b, 0);
-        return total + nodeGap * (node.children.length - 1);
-      }
-
-      function layoutTree(
-        node,
-        x,
-        y,
-        positions = {},
-        parent = null,
-        nodeHeight = 60,
-        nodeGap = 50,
-        isRoot = false,
-        xOffset = 150
-      ) {
-        if (!node) return positions;
-
-        if (
-          isRoot &&
-          node.children &&
-          node.children.length > 0 &&
-          !node.collapsed
-        ) {
-          let childYs = [];
-          let childY = 0;
-          node.children.forEach((child) => {
-            layoutTree(
-              child,
-              x + xOffset,
-              childY,
-              positions,
-              node,
-              nodeHeight,
-              nodeGap,
-              false,
-              xOffset
-            );
-            childYs.push(positions[child.id].y);
-            childY += getSubtreeHeight(child, nodeHeight, nodeGap) + nodeGap;
-          });
-          const maxY = childYs.length > 0 ? Math.max(...childYs) : 0;
-          y = maxY / 2;
-          positions[node.id] = { x, y, node, parent };
-        } else if (
-          isRoot &&
-          node.children &&
-          node.children.length > 0 &&
-          node.collapsed
-        ) {
-          positions[node.id] = { x, y, node, parent };
-        } else {
-          positions[node.id] = { x, y, node, parent };
-          if (!node.collapsed && node.children && node.children.length > 0) {
-            let childY = isRoot ? 0 : y;
-            node.children.forEach((child) => {
-              layoutTree(
-                child,
-                x + xOffset,
-                childY,
-                positions,
-                node,
-                nodeHeight,
-                nodeGap,
-                false,
-                xOffset
-              );
-              const childSubtreeHeight = getSubtreeHeight(
-                child,
-                nodeHeight,
-                nodeGap
-              );
-              childY += childSubtreeHeight + nodeGap;
-            });
-          }
-        }
-        return positions;
-      }
-
-      function CollapseCircle({ x, y, hasChildren, collapsed, onClick }) {
-        let fillColor = "#fff";
-        if (hasChildren) fillColor = collapsed ? "orange" : "#888";
-        return (
-          <circle
-            cx={x}
-            cy={y}
-            r={9}
-            stroke="#888" //丸枠
-            strokeWidth={2} //丸枠の太さ
-            className="collapse-circle"
-            fill={fillColor}
-            onClick={hasChildren ? onClick : undefined}
-          />
-        );
-      }
-
-      // textの折り返し
-      function wrapText(text, maxCharsPerLine = 8) {
-        const lines = [];
-        let current = "";
-        for (let c of text) {
-          current += c;
-          if (current.length >= maxCharsPerLine) {
-            lines.push(current);
-            current = "";
-          }
-        }
-        if (current) lines.push(current);
-        return lines;
-      }
-
-      function MindMapNode({
-        node,
-        pos,
-        onEdit,
-        onAdd,
-        onDelete,
-        onToggle,
-        editingId,
-        setEditingId,
-      }) {
-        // テキスト幅計算用
-        const textRef = React.useRef();
-        const [textWidth, setTextWidth] = React.useState(0);
-
-        const [tempName, setTempName] = React.useState(node.name || "");
-        const [tempUrl, setTempUrl] = React.useState(node.url || "");
-
-        React.useEffect(() => {
-          setTempName(node.name || "");
-          setTempUrl(node.url || "");
-        }, [node.name, node.url, editingId]);
-
-        // テキスト幅を設定
-        React.useEffect(() => {
-          if (textRef.current) {
-            setTextWidth(textRef.current.getBBox().width);
-          }
-        }, [node.name, editingId]);
-
-        // 編集確定処理
-        const confirmEdit = React.useCallback(() => {
-          onEdit(
-            node.id,
-            tempName.trim() === "" ? "空" : tempName,
-            tempUrl.trim()
-          );
-          setEditingId(null);
-        }, [node.id, tempName, tempUrl, onEdit, setEditingId]);
-
-        // onBlurで即確定
-        const handleBlur = (e) => {
-          // フォーカス先が同じforeignObject内かチェック
-          // e.relatedTargetはinput/textarea間の移動時に次の要素を指す
-          if (
-            e.relatedTarget &&
-            (e.relatedTarget.className === "node-edit" ||
-              e.relatedTarget.className === "url-edit")
-          ) {
-            // 他の編集フィールドに移動しただけなので何もしない
-            return;
-          }
-          // それ以外（枠外クリックや他のノードクリック）は確定
-          confirmEdit();
-        };
-
-        const circleX = 0,
-          circleY = 0;
-
-        return (
-          <g className="node-group" transform={`translate(${pos.x},${pos.y})`}>
-            <CollapseCircle
-              x={circleX}
-              y={circleY}
-              hasChildren={node.children && node.children.length > 0}
-              collapsed={node.collapsed}
-              onClick={(e) => {
-                e.stopPropagation();
-                if (node.children && node.children.length > 0)
-                  onToggle(node.id);
-              }}
-            />
-            {editingId === node.id ? (
-              <foreignObject x={-50} y={15} width={170} height={100}>
-                <div style={{ display: "flex", flexDirection: "column" }}>
-                  <textarea
-                    className="node-edit"
-                    cols="8"
-                    placeholder="20字程度まで"
-                    value={tempName}
-                    onChange={(e) => setTempName(e.target.value)}
-                    onBlur={handleBlur}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        confirmEdit();
-                      }
-                    }}
-                    autoFocus
-                    tabIndex={0}
-                  />
-                  <input
-                    className="url-edit"
-                    type="text"
-                    placeholder="URLリンク(省略可)"
-                    value={tempUrl}
-                    onChange={(e) => setTempUrl(e.target.value)}
-                    onBlur={handleBlur}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        confirmEdit();
-                      }
-                    }}
-                    tabIndex={0}
-                  />
-                </div>
-              </foreignObject>
-            ) : node.url ? (
-              <a
-                xlinkHref={node.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ cursor: "pointer" }}
-              >
-                <text
-                  ref={textRef}
-                  x={0}
-                  y={35}
-                  textAnchor="middle"
-                  style={{
-                    cursor: "pointer",
-                    fontSize: "14px",
-                    textDecoration: "underline",
-                    fill: "blue",
-                    marginLeft: "10px",
-                  }}
-                  onClick={(e) => {
-                    if (e.button === 2) {
-                      e.preventDefault();
-                      setEditingId(node.id);
+        <!-- ReactとBabel CDN -->
+        <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+        <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+        <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+        <script type="text/babel">
+            // --- ユーティリティ: マークダウン変換 ---
+            // ツリー→Markdown
+            function treeToMarkdown(node, depth = 0) {
+                let md = `${"  ".repeat(depth)}- ${node.name}${
+                    node.url ? "[" + node.url + "]" : ""
+                }\n`;
+                if (node.children && node.children.length > 0) {
+                    for (const child of node.children) {
+                        md += treeToMarkdown(child, depth + 1);
                     }
-                  }}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setEditingId(node.id);
-                  }}
-                >
-                  {wrapText(node.name, 8).map((line, i) => (
-                    <tspan key={i} x={0} dy={i === 0 ? 0 : 20}>
-                      {line}
-                    </tspan>
-                  ))}
-                </text>
-              </a>
-            ) : (
-              <text
-                ref={textRef}
-                x={0}
-                y={35}
-                textAnchor="middle"
-                style={{
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  marginLeft: "10px",
-                }}
-                onClick={() => setEditingId(node.id)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  setEditingId(node.id);
-                }}
-              >
-                {wrapText(node.name, 8).map((line, i) => (
-                  <tspan key={i} x={0} dy={i === 0 ? 0 : 20}>
-                    {line}
-                  </tspan>
-                ))}
-              </text>
-            )}
-            {/* 編集ボタンをテキストの右端にforeignObjectで配置 */}
-            {editingId !== node.id && (
-              <foreignObject
-                x={textWidth / 2 + 10} // テキストの右端＋余白
-                y={20} // テキストのy座標に合わせる
-                width={24}
-                height={24}
-                style={{ overflow: "visible" }}
-              >
-                <div
-                  title="編集"
-                  style={{
-                    width: 24,
-                    height: 24,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    fontSize: "18px",
-                  }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setEditingId(node.id);
-                  }}
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 48 48"
-                    width="48px"
-                    height="48px"
-                  >
-                    <path
-                      fill="#c94f60"
-                      d="M42.583,9.067l-3.651-3.65c-0.555-0.556-1.459-0.556-2.015,0l-1.718,1.72l5.664,5.664l1.72-1.718	C43.139,10.526,43.139,9.625,42.583,9.067"
-                    />
-                    <path
-                      fill="#f0f0f0"
-                      d="M6.905,35.43L5,43l7.571-1.906l0.794-6.567L6.905,35.43z"
-                    />
-                    <path
-                      fill="#edbe00"
-                      d="M36.032,17.632l-23.46,23.461l-5.665-5.665l23.46-23.461L36.032,17.632z"
-                    />
-                    <linearGradient
-                      id="YoPixpDbHWOyk~b005eF1a"
-                      x1="35.612"
-                      x2="35.612"
-                      y1="7.494"
-                      y2="17.921"
-                      gradientUnits="userSpaceOnUse"
-                    >
-                      <stop offset="0" stop-color="#dedede" />
-                      <stop offset="1" stop-color="#d6d6d6" />
-                    </linearGradient>
-                    <path
-                      fill="url(#YoPixpDbHWOyk~b005eF1a)"
-                      d="M30.363,11.968l4.832-4.834l5.668,5.664l-4.832,4.834L30.363,11.968z"
-                    />
-                    <path
-                      fill="#787878"
-                      d="M5.965,39.172L5,43l3.827-0.965L5.965,39.172z"
-                    />
-                  </svg>
-                </div>
-              </foreignObject>
-            )}
-
-            {/* add/delボタン */}
-            {!editingId && (
-              <foreignObject x={25} y={-15} width={70} height={40}>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "row",
-                    alignItems: "start",
-                    justifyContent: "flex-start",
-                    height: "30px",
-                    width: "100px",
-                    gap: "15px",
-                  }}
-                >
-                  <div
-                    className="node-btn add"
-                    title="子追加"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onAdd(node.id);
-                    }}
-                  >
-                    ＋
-                  </div>
-
-                  {pos.parent && (
-                    <div
-                      className="node-btn del"
-                      title="削除"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onDelete(node.id);
-                      }}
-                    >
-                      －
-                    </div>
-                  )}
-                </div>
-              </foreignObject>
-            )}
-          </g>
-        );
-      }
-
-      function MindMapLinks({ positions }) {
-        const lines = [];
-        Object.values(positions).forEach((pos) => {
-          if (pos.parent) {
-            const parentPos = positions[pos.parent.id];
-            lines.push(
-              <line
-                key={pos.node.id}
-                x1={parentPos.x}
-                y1={parentPos.y}
-                x2={pos.x}
-                y2={pos.y}
-                stroke="#bbb"
-                strokeWidth={2}
-              />
-            );
-          }
-        });
-        return <g>{lines}</g>;
-      }
-
-      function editNode(node, id, fn) {
-        if (node.id === id) return fn(node);
-        return {
-          ...node,
-          children: (node.children || []).map((child) =>
-            editNode(child, id, fn)
-          ),
-        };
-      }
-
-      function deleteNode(node, id) {
-        return {
-          ...node,
-          children: (node.children || [])
-            .filter((child) => child.id !== id)
-            .map((child) => deleteNode(child, id)),
-        };
-      }
-
-      function MindMapApp() {
-        // 初期rootデータを取得
-        const getSavedRoot = () => {
-          try {
-            const saved = localStorage.getItem("ideamapTemp");
-            if (saved) {
-              const data = JSON.parse(saved);
-              if (data && data.root) {
-                return data.root;
-              }
+                }
+                return md;
             }
-          } catch (e) {
-            console.error("Failed to load from localStorage:", e);
-          }
-          return JSON.parse(JSON.stringify(initialTreeData.root));
-        };
 
-        // 初期nextNodeIdを計算
-        const getInitialNextNodeId = () => {
-          try {
-            const saved = localStorage.getItem("ideamapTemp");
-            if (saved) {
-              const data = JSON.parse(saved);
-              if (data && data.root) {
-                return getMaxId(data.root) + 1;
-              }
+            // Markdown→ツリー
+            function markdownToTree(md) {
+                const lines = md
+                    .split("\n")
+                    .filter((line) => line.trim().length > 0);
+                const stack = [];
+                let root = null;
+                let nodeId = 1;
+
+                function createNode(name, url) {
+                    return {
+                        id: nodeId++,
+                        name,
+                        url,
+                        collapsed: false,
+                        children: [],
+                    };
+                }
+                for (const line of lines) {
+                    const match = line.match(
+                        /^(\s*)-\s+([^\[]+?)(?:\s*\[([^\]]+)\])?$/
+                    );
+                    if (!match) continue;
+                    const indent = match[1].length / 2; // 2スペース単位
+                    const name = match[2].trim();
+                    const url = match[3] ? match[3].trim() : "";
+                    const node = createNode(name, url);
+                    if (indent === 0) {
+                        root = node;
+                        stack.length = 0;
+                        stack.push({ node, indent });
+                    } else {
+                        while (
+                            stack.length &&
+                            stack[stack.length - 1].indent >= indent
+                        )
+                            stack.pop();
+                        if (stack.length) {
+                            stack[stack.length - 1].node.children.push(node);
+                        }
+                        stack.push({ node, indent });
+                    }
+                }
+                return root;
             }
-          } catch (e) {
-            console.error("Failed to calculate nextNodeId:", e);
-          }
-          return getMaxId(initialTreeData.root) + 1;
-        };
+            // --- ここまでユーティリティ ---
 
-        const [root, setRoot] = React.useState(getSavedRoot());
-        const [nextNodeId, setNextNodeId] = React.useState(
-          getInitialNextNodeId()
-        );
-        const [editingId, setEditingId] = React.useState(null);
-        const [isMobile, setIsMobile] = React.useState(
-          window.matchMedia("(max-width: 767px)").matches
-        );
-
-        // ノードを生成する関数
-        const createNode = React.useCallback(
-          (name = "項目", children = [], collapsed = false) => {
-            const newId = nextNodeId;
-            setNextNodeId((prev) => prev + 1);
-            return {
-              id: newId,
-              name,
-              children: children || [],
-              collapsed,
+            // 初期ツリー定義
+            const initialTreeData = {
+                root: {
+                    id: 1,
+                    name: "初期表示",
+                    url: "",
+                    collapsed: false,
+                    children: [
+                        {
+                            id: 2,
+                            name: "子1",
+                            url: "",
+                            collapsed: false,
+                            children: [
+                                {
+                                    id: 3,
+                                    name: "孫1-1",
+                                    url: "",
+                                    collapsed: false,
+                                    children: [],
+                                },
+                            ],
+                        },
+                        {
+                            id: 4,
+                            name: "子2",
+                            url: "",
+                            collapsed: false,
+                            children: [
+                                {
+                                    id: 5,
+                                    name: "孫2-1",
+                                    url: "",
+                                    collapsed: false,
+                                    children: [],
+                                },
+                            ],
+                        },
+                    ],
+                },
             };
-          },
-          [nextNodeId]
-        );
 
-        React.useEffect(() => {
-          const handler = () => {
-            setIsMobile(window.matchMedia("(max-width: 767px)").matches);
-          };
-          window.addEventListener("resize", handler);
-          return () => window.removeEventListener("resize", handler);
-        }, []);
-
-        const handleEdit = React.useCallback((id, newName, newUrl) => {
-          setRoot((prev) =>
-            editNode(prev, id, (node) => ({
-              ...node,
-              name: newName,
-              url: newUrl,
-            }))
-          );
-        }, []);
-
-        const handleAdd = React.useCallback(
-          (id) => {
-            setRoot((prev) =>
-              editNode(prev, id, (node) => ({
-                ...node,
-                children: [...(node.children || []), createNode("項目")],
-              }))
-            );
-          },
-          [createNode]
-        );
-
-        const handleDelete = React.useCallback(
-          (id) => {
-            if (root.id === id) return;
-            if (window.confirm("本当にこのノードを削除しますか？")) {
-              setRoot((prev) => deleteNode(prev, id));
-            }
-          },
-          [root.id]
-        );
-
-        const handleToggle = React.useCallback((id) => {
-          setRoot((prev) =>
-            editNode(prev, id, (node) => ({
-              ...node,
-              collapsed: !node.collapsed,
-            }))
-          );
-        }, []);
-
-        // エクスポート処理
-        const handleExport = React.useCallback(() => {
-          const exportObj = { nextNodeId, root };
-          const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
-            type: "application/json",
-          });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "ideamap.json";
-          a.click();
-          URL.revokeObjectURL(url);
-        }, [nextNodeId, root]);
-
-        const handleImport = React.useCallback((event) => {
-          const file = event.target.files[0];
-          if (!file) return;
-
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-            const content = evt.target.result;
-
-            // JSONインポート処理
-            function importJson(data) {
-              if (data && data.root) {
-                const maxId = getMaxId(data.root);
-                setNextNodeId(Math.max(data.nextNodeId || 0, maxId + 1));
-                setRoot(data.root);
-                localStorage.setItem(
-                  "ideamapTemp",
-                  JSON.stringify({
-                    nextNodeId: Math.max(data.nextNodeId || 0, maxId + 1),
-                    root: data.root,
-                  })
-                );
-              } else {
-                alert("不正なデータです");
-              }
-            }
-
-            // Markdownインポート処理
-            function importMarkdown(md) {
-              const tree = markdownToTree(md);
-              if (tree) {
-                const maxId = getMaxId(tree);
-                setNextNodeId(maxId + 1);
-                setRoot(tree);
-                localStorage.setItem(
-                  "ideamapTemp",
-                  JSON.stringify({
-                    nextNodeId: maxId + 1,
-                    root: tree,
-                  })
-                );
-              } else {
-                alert("マークダウンからツリーを生成できませんでした");
-              }
-            }
-
-            // 拡張子で判別
-            if (file.name.endsWith(".json")) {
-              try {
-                const data = JSON.parse(content);
-                importJson(data);
-              } catch (err) {
-                alert("JSONの読み込みに失敗しました: " + err);
-              }
-            } else if (file.name.endsWith(".md")) {
-              try {
-                importMarkdown(content);
-              } catch (err) {
-                alert("Markdownの読み込みに失敗しました: " + err);
-              }
-            } else {
-              // 内容で判別する例（拡張子がない場合など）
-              try {
-                const data = JSON.parse(content);
-                importJson(data);
-              } catch {
-                try {
-                  importMarkdown(content);
-                } catch (err) {
-                  alert("ファイルの読み込みに失敗しました: " + err);
+            // ツリー全体から最大IDを取得するヘルパー関数
+            function getMaxId(node) {
+                let maxId = node.id;
+                for (const child of node.children || []) {
+                    maxId = Math.max(maxId, getMaxId(child));
                 }
-              }
+                return maxId;
             }
-          };
-          reader.readAsText(file);
-          event.target.value = null;
-        }, []);
 
-        // PNGとしてエクスポート処理
-        const handleExportPNG = React.useCallback(() => {
-          const svgElem = document.querySelector(".mindmap-svg");
-          if (!svgElem) {
-            alert("SVGが見つかりません");
-            return;
-          }
-
-          // 1. ボタンを非表示にする
-          const btns = svgElem.querySelectorAll(".node-btn");
-          const prevDisplays = [];
-          btns.forEach((btn, i) => {
-            prevDisplays[i] = btn.style.display;
-            btn.style.display = "none";
-          });
-
-          // 2. SVGをシリアライズ
-          const serializer = new XMLSerializer();
-          let source = serializer.serializeToString(svgElem);
-
-          // SVGにxmlns属性を追加（必要な場合）
-          if (
-            !source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)
-          ) {
-            source = source.replace(
-              /^<svg/,
-              '<svg xmlns="http://www.w3.org/2000/svg"'
-            );
-          }
-
-          // SVGデータを画像として読み込む
-          const svg64 = btoa(unescape(encodeURIComponent(source)));
-          const image64 = "data:image/svg+xml;base64," + svg64;
-
-          const img = new window.Image();
-          const width = svgElem.width.baseVal.value || 800;
-          const height = svgElem.height.baseVal.value || 600;
-          img.onload = function () {
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext("2d");
-            ctx.fillStyle = "#fff";
-            ctx.fillRect(0, 0, width, height);
-            ctx.drawImage(img, 0, 0, width, height);
-
-            canvas.toBlob((blob) => {
-              // 4. ボタンを元に戻す
-              btns.forEach((btn, i) => {
-                btn.style.display = prevDisplays[i];
-              });
-
-              if (blob) {
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = "ideamap.png";
-                a.click();
-                URL.revokeObjectURL(url);
-              }
-            }, "image/png");
-          };
-          img.onerror = function () {
-            // 4. ボタンを元に戻す
-            btns.forEach((btn, i) => {
-              btn.style.display = prevDisplays[i];
-            });
-            alert("画像変換に失敗しました");
-          };
-          img.src = image64;
-        }, []);
-
-        // --- Markdownエクスポート ---
-        const handleExportMarkdown = React.useCallback(() => {
-          const md = treeToMarkdown(root);
-          const blob = new Blob([md], { type: "text/markdown" });
-          const url = URL.createObjectURL(blob);
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = "ideamap.md";
-          a.click();
-          URL.revokeObjectURL(url);
-        }, [root]);
-
-        // 一時保存処理
-        const handleSaveTemp = React.useCallback(() => {
-          const tempData = { nextNodeId, root };
-          localStorage.setItem("ideamapTemp", JSON.stringify(tempData));
-          alert("一時保存しました！");
-        }, [nextNodeId, root]);
-
-        // 一時保存から再開処理
-        const handleResume = React.useCallback(() => {
-          const saved = localStorage.getItem("ideamapTemp");
-          if (saved) {
-            try {
-              const data = JSON.parse(saved);
-              if (data && data.root) {
-                const maxId = getMaxId(data.root);
-                setNextNodeId(Math.max(data.nextNodeId || 0, maxId + 1));
-                setRoot(data.root);
-                setTimeout(() => {
-                  alert("保存データを読み込みました！");
-                }, 100);
-              } else {
-                alert("保存データが不正です");
-              }
-            } catch (err) {
-              alert("読み込み失敗: " + err);
+            function getSubtreeHeight(node, nodeHeight = 60, nodeGap = 50) {
+                if (
+                    !node ||
+                    node.collapsed ||
+                    !node.children ||
+                    node.children.length === 0
+                )
+                    return nodeHeight;
+                const total = node.children
+                    .map((child) =>
+                        getSubtreeHeight(child, nodeHeight, nodeGap)
+                    )
+                    .reduce((a, b) => a + b, 0);
+                return total + nodeGap * (node.children.length - 1);
             }
-          } else {
-            alert("保存されたデータが見つかりません");
-          }
-        }, []);
 
-        // 新規作成処理
-        const handleNew = React.useCallback(() => {
-          if (
-            window.confirm(
-              "新規作成します。現在の内容は失われます。よろしいですか？"
-            )
-          ) {
-            const initialRoot = JSON.parse(
-              JSON.stringify(initialTreeData.root)
-            );
-            setNextNodeId(getMaxId(initialRoot) + 1);
-            setRoot(initialRoot);
-          }
-        }, []);
+            function layoutTree(
+                node,
+                x,
+                y,
+                positions = {},
+                parent = null,
+                nodeHeight = 60,
+                nodeGap = 50,
+                isRoot = false,
+                xOffset = 150
+            ) {
+                if (!node) return positions;
 
-        // SVGのレイアウト計算
-        const nodeHeight = 60;
-        const nodeGap = 50;
-        const totalTreeHeight = getSubtreeHeight(root, nodeHeight, nodeGap);
-        const rootY = totalTreeHeight / 2;
-        const xOffset = isMobile ? 130 : 170;
-
-        const positions = layoutTree(
-          root,
-          70,
-          rootY,
-          {},
-          null,
-          nodeHeight,
-          nodeGap,
-          true,
-          xOffset
-        );
-
-        // SVGのサイズ計算（防御的に）
-        const yValues = Object.values(positions).map((pos) => pos.y);
-        const minY = yValues.length ? Math.min(...yValues, 0) : 0;
-        const maxY = yValues.length ? Math.max(...yValues, 0) : 0;
-        const svgHeight = Math.max(maxY - minY + 150, 200); // 最小高さを確保
-        const yOffset = -minY + 50;
-
-        const xValues = Object.values(positions).map((pos) => pos.x);
-        const maxX = xValues.length ? Math.max(...xValues, 0) : 0;
-        const svgWidth = Math.max(maxX + 120, 300); // 最小幅を確保
-
-        return (
-          <>
-            <div className="export-import-bar">
-              {/* エクスポート（JSON） */}
-              <button onClick={handleExport}>json保存</button>
-
-              {/* エクスポート（Markdown） */}
-              <button onClick={handleExportMarkdown}>Markdown保存</button>
-
-              <input
-                type="file"
-                id="import-file-input"
-                accept=".json,.md,application/json,text/markdown"
-                style={{ display: "none" }}
-                onChange={handleImport}
-              />
-              <button
-                onClick={() =>
-                  document.getElementById("import-file-input").click()
+                if (
+                    isRoot &&
+                    node.children &&
+                    node.children.length > 0 &&
+                    !node.collapsed
+                ) {
+                    let childYs = [];
+                    let childY = 0;
+                    node.children.forEach((child) => {
+                        layoutTree(
+                            child,
+                            x + xOffset,
+                            childY,
+                            positions,
+                            node,
+                            nodeHeight,
+                            nodeGap,
+                            false,
+                            xOffset
+                        );
+                        childYs.push(positions[child.id].y);
+                        childY +=
+                            getSubtreeHeight(child, nodeHeight, nodeGap) +
+                            nodeGap;
+                    });
+                    const maxY = childYs.length > 0 ? Math.max(...childYs) : 0;
+                    y = maxY / 2;
+                    positions[node.id] = { x, y, node, parent };
+                } else if (
+                    isRoot &&
+                    node.children &&
+                    node.children.length > 0 &&
+                    node.collapsed
+                ) {
+                    positions[node.id] = { x, y, node, parent };
+                } else {
+                    positions[node.id] = { x, y, node, parent };
+                    if (
+                        !node.collapsed &&
+                        node.children &&
+                        node.children.length > 0
+                    ) {
+                        let childY = isRoot ? 0 : y;
+                        node.children.forEach((child) => {
+                            layoutTree(
+                                child,
+                                x + xOffset,
+                                childY,
+                                positions,
+                                node,
+                                nodeHeight,
+                                nodeGap,
+                                false,
+                                xOffset
+                            );
+                            const childSubtreeHeight = getSubtreeHeight(
+                                child,
+                                nodeHeight,
+                                nodeGap
+                            );
+                            childY += childSubtreeHeight + nodeGap;
+                        });
+                    }
                 }
-              >
-                インポート
-              </button>
+                return positions;
+            }
 
-              <br />
-
-              {/* PNGエクスポート */}
-              <button onClick={handleExportPNG}>PNG画像保存</button>
-              <br />
-
-              {/* 一時保存・再開 */}
-              <button onClick={handleSaveTemp}>一時保存</button>
-              <button onClick={handleResume}>一時保存から再開</button>
-              <br />
-
-              {/* 新規 */}
-              <button onClick={handleNew}>新規</button>
-            </div>
-
-            <div className="mindmap-container">
-              <svg width={svgWidth} height={svgHeight} className="mindmap-svg">
-                <g transform={`translate(0,${yOffset})`}>
-                  <MindMapLinks positions={positions} />
-                  {Object.values(positions).map((pos) => (
-                    <MindMapNode
-                      key={pos.node.id}
-                      node={pos.node}
-                      pos={{ ...pos, y: pos.y }}
-                      onEdit={(id, name, url) => {
-                        handleEdit(id, name, url);
-                        setEditingId(null);
-                      }}
-                      onAdd={handleAdd}
-                      onDelete={handleDelete}
-                      onToggle={handleToggle}
-                      editingId={editingId}
-                      setEditingId={setEditingId}
+            function CollapseCircle({ x, y, hasChildren, collapsed, onClick }) {
+                let fillColor = "#fff";
+                if (hasChildren) fillColor = collapsed ? "orange" : "#888";
+                return (
+                    <circle
+                        cx={x}
+                        cy={y}
+                        r={9}
+                        stroke="#888" //丸枠
+                        strokeWidth={2} //丸枠の太さ
+                        className="collapse-circle"
+                        fill={fillColor}
+                        onClick={hasChildren ? onClick : undefined}
                     />
-                  ))}
-                </g>
-              </svg>
-            </div>
-          </>
-        );
-      }
+                );
+            }
 
-      const root = ReactDOM.createRoot(
-        document.getElementById("app-container")
-      );
-      root.render(<MindMapApp />);
-    </script>
-  </body>
+            // textの折り返し
+            function wrapText(text, maxCharsPerLine = 8) {
+                const lines = [];
+                let current = "";
+                for (let c of text) {
+                    current += c;
+                    if (current.length >= maxCharsPerLine) {
+                        lines.push(current);
+                        current = "";
+                    }
+                }
+                if (current) lines.push(current);
+                return lines;
+            }
+
+            function MindMapNode({
+                node,
+                pos,
+                onEdit,
+                onAdd,
+                onDelete,
+                onToggle,
+                editingId,
+                setEditingId,
+            }) {
+                // テキスト幅計算用
+                const textRef = React.useRef();
+                const [textWidth, setTextWidth] = React.useState(0);
+
+                const [tempName, setTempName] = React.useState(node.name || "");
+                const [tempUrl, setTempUrl] = React.useState(node.url || "");
+
+                React.useEffect(() => {
+                    setTempName(node.name || "");
+                    setTempUrl(node.url || "");
+                }, [node.name, node.url, editingId]);
+
+                // テキスト幅を設定
+                React.useEffect(() => {
+                    if (textRef.current) {
+                        setTextWidth(textRef.current.getBBox().width);
+                    }
+                }, [node.name, editingId]);
+
+                // 編集確定処理
+                const confirmEdit = React.useCallback(() => {
+                    onEdit(
+                        node.id,
+                        tempName.trim() === "" ? "空" : tempName,
+                        tempUrl.trim()
+                    );
+                    setEditingId(null);
+                }, [node.id, tempName, tempUrl, onEdit, setEditingId]);
+
+                // onBlurで即確定
+                const handleBlur = (e) => {
+                    // フォーカス先が同じforeignObject内かチェック
+                    // e.relatedTargetはinput/textarea間の移動時に次の要素を指す
+                    if (
+                        e.relatedTarget &&
+                        (e.relatedTarget.className === "node-edit" ||
+                            e.relatedTarget.className === "url-edit")
+                    ) {
+                        // 他の編集フィールドに移動しただけなので何もしない
+                        return;
+                    }
+                    // それ以外（枠外クリックや他のノードクリック）は確定
+                    confirmEdit();
+                };
+
+                const circleX = 0,
+                    circleY = 0;
+
+                return (
+                    <g
+                        className="node-group"
+                        transform={`translate(${pos.x},${pos.y})`}
+                    >
+                        <CollapseCircle
+                            x={circleX}
+                            y={circleY}
+                            hasChildren={
+                                node.children && node.children.length > 0
+                            }
+                            collapsed={node.collapsed}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                if (node.children && node.children.length > 0)
+                                    onToggle(node.id);
+                            }}
+                        />
+                        {editingId === node.id ? (
+                            <foreignObject
+                                x={-50}
+                                y={15}
+                                width={170}
+                                height={100}
+                            >
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "column",
+                                    }}
+                                >
+                                    <textarea
+                                        className="node-edit"
+                                        cols="8"
+                                        placeholder="20字程度まで"
+                                        value={tempName}
+                                        onChange={(e) =>
+                                            setTempName(e.target.value)
+                                        }
+                                        onBlur={handleBlur}
+                                        onKeyDown={(e) => {
+                                            if (
+                                                e.key === "Enter" &&
+                                                !e.shiftKey
+                                            ) {
+                                                confirmEdit();
+                                            }
+                                        }}
+                                        autoFocus
+                                        tabIndex={0}
+                                    />
+                                    <input
+                                        className="url-edit"
+                                        type="text"
+                                        placeholder="URLリンク(省略可)"
+                                        value={tempUrl}
+                                        onChange={(e) =>
+                                            setTempUrl(e.target.value)
+                                        }
+                                        onBlur={handleBlur}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter") {
+                                                confirmEdit();
+                                            }
+                                        }}
+                                        tabIndex={0}
+                                    />
+                                </div>
+                            </foreignObject>
+                        ) : node.url ? (
+                            <text
+                                ref={textRef}
+                                x={0}
+                                y={35}
+                                textAnchor="middle"
+                                style={{
+                                    cursor: "pointer",
+                                    fontSize: "14px",
+                                    textDecoration: "underline",
+                                    fill: "blue",
+                                    marginLeft: "10px",
+                                }}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setEditingId(node.id);
+                                }}
+                            >
+                                {wrapText(node.name, 8).map((line, i) => (
+                                    <tspan key={i} x={0} dy={i === 0 ? 0 : 20}>
+                                        {line}
+                                    </tspan>
+                                ))}
+                            </text>
+                        ) : (
+                            <text
+                                ref={textRef}
+                                x={0}
+                                y={35}
+                                textAnchor="middle"
+                                style={{
+                                    cursor: "pointer",
+                                    fontSize: "14px",
+                                    marginLeft: "10px",
+                                }}
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    setEditingId(node.id);
+                                }}
+                            >
+                                {wrapText(node.name, 8).map((line, i) => (
+                                    <tspan key={i} x={0} dy={i === 0 ? 0 : 20}>
+                                        {line}
+                                    </tspan>
+                                ))}
+                            </text>
+                        )}
+                        {/* 編集ボタンをテキストの右端にforeignObjectで配置 */}
+                        {editingId !== node.id && node.url && (
+                            <foreignObject
+                                x={textWidth / 2 + 10} // テキストの右端＋余白
+                                y={20} // テキストのy座標に合わせる
+                                width={24}
+                                height={24}
+                                style={{ overflow: "visible" }}
+                            >
+                                <div
+                                    title="URLリンク"
+                                    style={{
+                                        width: 24,
+                                        height: 24,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        cursor: "pointer",
+                                        fontSize: "18px",
+                                    }}
+                                    onClick={() => {
+                                        window.open(node.url, "_blank");
+                                    }}
+                                >
+                                    <svg
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        width="18"
+                                        height="18"
+                                        viewBox="0 0 24 24"
+                                        fill="none"
+                                        stroke="currentColor"
+                                        stroke-width="1"
+                                        stroke-linecap="round"
+                                        stroke-linejoin="round"
+                                    >
+                                        <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                                        <polyline points="15 3 21 3 21 9" />
+                                        <line x1="10" y1="14" x2="21" y2="3" />
+                                    </svg>
+                                </div>
+                            </foreignObject>
+                        )}
+
+                        {/* add/delボタン */}
+                        {!editingId && (
+                            <foreignObject
+                                x={25}
+                                y={-15}
+                                width={70}
+                                height={40}
+                            >
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        flexDirection: "row",
+                                        alignItems: "start",
+                                        justifyContent: "flex-start",
+                                        height: "30px",
+                                        width: "100px",
+                                        gap: "15px",
+                                    }}
+                                >
+                                    <div
+                                        className="node-btn add"
+                                        title="子追加"
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onAdd(node.id);
+                                        }}
+                                    >
+                                        ＋
+                                    </div>
+
+                                    {pos.parent && (
+                                        <div
+                                            className="node-btn del"
+                                            title="削除"
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onDelete(node.id);
+                                            }}
+                                        >
+                                            －
+                                        </div>
+                                    )}
+                                </div>
+                            </foreignObject>
+                        )}
+                    </g>
+                );
+            }
+
+            function MindMapLinks({ positions }) {
+                const lines = [];
+                Object.values(positions).forEach((pos) => {
+                    if (pos.parent) {
+                        const parentPos = positions[pos.parent.id];
+                        lines.push(
+                            <line
+                                key={pos.node.id}
+                                x1={parentPos.x}
+                                y1={parentPos.y}
+                                x2={pos.x}
+                                y2={pos.y}
+                                stroke="#bbb"
+                                strokeWidth={2}
+                            />
+                        );
+                    }
+                });
+                return <g>{lines}</g>;
+            }
+
+            function editNode(node, id, fn) {
+                if (node.id === id) return fn(node);
+                return {
+                    ...node,
+                    children: (node.children || []).map((child) =>
+                        editNode(child, id, fn)
+                    ),
+                };
+            }
+
+            function deleteNode(node, id) {
+                return {
+                    ...node,
+                    children: (node.children || [])
+                        .filter((child) => child.id !== id)
+                        .map((child) => deleteNode(child, id)),
+                };
+            }
+
+            function MindMapApp() {
+                // 初期rootデータを取得
+                const getSavedRoot = () => {
+                    try {
+                        const saved = localStorage.getItem("ideamapTemp");
+                        if (saved) {
+                            const data = JSON.parse(saved);
+                            if (data && data.root) {
+                                return data.root;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to load from localStorage:", e);
+                    }
+                    return JSON.parse(JSON.stringify(initialTreeData.root));
+                };
+
+                // 初期nextNodeIdを計算
+                const getInitialNextNodeId = () => {
+                    try {
+                        const saved = localStorage.getItem("ideamapTemp");
+                        if (saved) {
+                            const data = JSON.parse(saved);
+                            if (data && data.root) {
+                                return getMaxId(data.root) + 1;
+                            }
+                        }
+                    } catch (e) {
+                        console.error("Failed to calculate nextNodeId:", e);
+                    }
+                    return getMaxId(initialTreeData.root) + 1;
+                };
+
+                const [root, setRoot] = React.useState(getSavedRoot());
+                const [nextNodeId, setNextNodeId] = React.useState(
+                    getInitialNextNodeId()
+                );
+                const [editingId, setEditingId] = React.useState(null);
+                const [isMobile, setIsMobile] = React.useState(
+                    window.matchMedia("(max-width: 767px)").matches
+                );
+
+                // ノードを生成する関数
+                const createNode = React.useCallback(
+                    (name = "項目", children = [], collapsed = false) => {
+                        const newId = nextNodeId;
+                        setNextNodeId((prev) => prev + 1);
+                        return {
+                            id: newId,
+                            name,
+                            children: children || [],
+                            collapsed,
+                        };
+                    },
+                    [nextNodeId]
+                );
+
+                React.useEffect(() => {
+                    const handler = () => {
+                        setIsMobile(
+                            window.matchMedia("(max-width: 767px)").matches
+                        );
+                    };
+                    window.addEventListener("resize", handler);
+                    return () => window.removeEventListener("resize", handler);
+                }, []);
+
+                const handleEdit = React.useCallback((id, newName, newUrl) => {
+                    setRoot((prev) =>
+                        editNode(prev, id, (node) => ({
+                            ...node,
+                            name: newName,
+                            url: newUrl,
+                        }))
+                    );
+                }, []);
+
+                const handleAdd = React.useCallback(
+                    (id) => {
+                        setRoot((prev) =>
+                            editNode(prev, id, (node) => ({
+                                ...node,
+                                children: [
+                                    ...(node.children || []),
+                                    createNode("項目"),
+                                ],
+                            }))
+                        );
+                    },
+                    [createNode]
+                );
+
+                const handleDelete = React.useCallback(
+                    (id) => {
+                        if (root.id === id) return;
+                        if (
+                            window.confirm("本当にこのノードを削除しますか？")
+                        ) {
+                            setRoot((prev) => deleteNode(prev, id));
+                        }
+                    },
+                    [root.id]
+                );
+
+                const handleToggle = React.useCallback((id) => {
+                    setRoot((prev) =>
+                        editNode(prev, id, (node) => ({
+                            ...node,
+                            collapsed: !node.collapsed,
+                        }))
+                    );
+                }, []);
+
+                // エクスポート処理
+                const handleExport = React.useCallback(() => {
+                    const exportObj = { nextNodeId, root };
+                    const blob = new Blob(
+                        [JSON.stringify(exportObj, null, 2)],
+                        {
+                            type: "application/json",
+                        }
+                    );
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+
+                    const saveName = (root.name || "ideamap").replace(
+                        /[\\/:*?"<>|]/g,
+                        "_"
+                    );
+                    a.download = `${saveName}.json`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }, [nextNodeId, root]);
+
+                const handleImport = React.useCallback((event) => {
+                    const file = event.target.files[0];
+                    if (!file) return;
+
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        const content = evt.target.result;
+
+                        // JSONインポート処理
+                        function importJson(data) {
+                            if (data && data.root) {
+                                const maxId = getMaxId(data.root);
+                                setNextNodeId(
+                                    Math.max(data.nextNodeId || 0, maxId + 1)
+                                );
+                                setRoot(data.root);
+                                localStorage.setItem(
+                                    "ideamapTemp",
+                                    JSON.stringify({
+                                        nextNodeId: Math.max(
+                                            data.nextNodeId || 0,
+                                            maxId + 1
+                                        ),
+                                        root: data.root,
+                                    })
+                                );
+                            } else {
+                                alert("不正なデータです");
+                            }
+                        }
+
+                        // Markdownインポート処理
+                        function importMarkdown(md) {
+                            const tree = markdownToTree(md);
+                            if (tree) {
+                                const maxId = getMaxId(tree);
+                                setNextNodeId(maxId + 1);
+                                setRoot(tree);
+                                localStorage.setItem(
+                                    "ideamapTemp",
+                                    JSON.stringify({
+                                        nextNodeId: maxId + 1,
+                                        root: tree,
+                                    })
+                                );
+                            } else {
+                                alert(
+                                    "マークダウンからツリーを生成できませんでした"
+                                );
+                            }
+                        }
+
+                        // 拡張子で判別
+                        if (file.name.endsWith(".json")) {
+                            try {
+                                const data = JSON.parse(content);
+                                importJson(data);
+                            } catch (err) {
+                                alert("JSONの読み込みに失敗しました: " + err);
+                            }
+                        } else if (file.name.endsWith(".md")) {
+                            try {
+                                importMarkdown(content);
+                            } catch (err) {
+                                alert(
+                                    "Markdownの読み込みに失敗しました: " + err
+                                );
+                            }
+                        } else {
+                            // 内容で判別する例（拡張子がない場合など）
+                            try {
+                                const data = JSON.parse(content);
+                                importJson(data);
+                            } catch {
+                                try {
+                                    importMarkdown(content);
+                                } catch (err) {
+                                    alert(
+                                        "ファイルの読み込みに失敗しました: " +
+                                            err
+                                    );
+                                }
+                            }
+                        }
+                    };
+                    reader.readAsText(file);
+                    event.target.value = null;
+                }, []);
+
+                // PNGとしてエクスポート処理
+                const handleExportPNG = React.useCallback(() => {
+                    const svgElem = document.querySelector(".mindmap-svg");
+                    if (!svgElem) {
+                        alert("SVGが見つかりません");
+                        return;
+                    }
+
+                    // 1. ボタンを非表示にする
+                    const btns = svgElem.querySelectorAll(".node-btn");
+                    const prevDisplays = [];
+                    btns.forEach((btn, i) => {
+                        prevDisplays[i] = btn.style.display;
+                        btn.style.display = "none";
+                    });
+
+                    // 2. SVGをシリアライズ
+                    const serializer = new XMLSerializer();
+                    let source = serializer.serializeToString(svgElem);
+
+                    // SVGにxmlns属性を追加（必要な場合）
+                    if (
+                        !source.match(
+                            /^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/
+                        )
+                    ) {
+                        source = source.replace(
+                            /^<svg/,
+                            '<svg xmlns="http://www.w3.org/2000/svg"'
+                        );
+                    }
+
+                    // SVGデータを画像として読み込む
+                    const svg64 = btoa(unescape(encodeURIComponent(source)));
+                    const image64 = "data:image/svg+xml;base64," + svg64;
+
+                    const img = new window.Image();
+                    const width = svgElem.width.baseVal.value || 800;
+                    const height = svgElem.height.baseVal.value || 600;
+                    img.onload = function () {
+                        const canvas = document.createElement("canvas");
+                        canvas.width = width;
+                        canvas.height = height;
+                        const ctx = canvas.getContext("2d");
+                        ctx.fillStyle = "#fff";
+                        ctx.fillRect(0, 0, width, height);
+                        ctx.drawImage(img, 0, 0, width, height);
+
+                        canvas.toBlob((blob) => {
+                            // 4. ボタンを元に戻す
+                            btns.forEach((btn, i) => {
+                                btn.style.display = prevDisplays[i];
+                            });
+
+                            if (blob) {
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+
+                                const saveName = (
+                                    root.name || "ideamap"
+                                ).replace(/[\\/:*?"<>|]/g, "_");
+                                a.download = `${saveName}.png`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            }
+                        }, "image/png");
+                    };
+                    img.onerror = function () {
+                        // 4. ボタンを元に戻す
+                        btns.forEach((btn, i) => {
+                            btn.style.display = prevDisplays[i];
+                        });
+                        alert("画像変換に失敗しました");
+                    };
+                    img.src = image64;
+                }, []);
+
+                // --- Markdownエクスポート ---
+                const handleExportMarkdown = React.useCallback(() => {
+                    const md = treeToMarkdown(root);
+                    const blob = new Blob([md], { type: "text/markdown" });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement("a");
+                    a.href = url;
+
+                    const saveName = (root.name || "ideamap").replace(
+                        /[\\/:*?"<>|]/g,
+                        "_"
+                    );
+                    a.download = `${saveName}.md`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }, [root]);
+
+                // 一時保存処理
+                const handleSaveTemp = React.useCallback(() => {
+                    const tempData = { nextNodeId, root };
+                    localStorage.setItem(
+                        "ideamapTemp",
+                        JSON.stringify(tempData)
+                    );
+                    alert("一時保存しました！");
+                }, [nextNodeId, root]);
+
+                // 一時保存から再開処理
+                const handleResume = React.useCallback(() => {
+                    const saved = localStorage.getItem("ideamapTemp");
+                    if (saved) {
+                        try {
+                            const data = JSON.parse(saved);
+                            if (data && data.root) {
+                                const maxId = getMaxId(data.root);
+                                setNextNodeId(
+                                    Math.max(data.nextNodeId || 0, maxId + 1)
+                                );
+                                setRoot(data.root);
+                                setTimeout(() => {
+                                    alert("保存データを読み込みました！");
+                                }, 100);
+                            } else {
+                                alert("保存データが不正です");
+                            }
+                        } catch (err) {
+                            alert("読み込み失敗: " + err);
+                        }
+                    } else {
+                        alert("保存されたデータが見つかりません");
+                    }
+                }, []);
+
+                // 新規作成処理
+                const handleNew = React.useCallback(() => {
+                    if (
+                        window.confirm(
+                            "新規作成します。現在の内容は失われます。よろしいですか？"
+                        )
+                    ) {
+                        const initialRoot = JSON.parse(
+                            JSON.stringify(initialTreeData.root)
+                        );
+                        setNextNodeId(getMaxId(initialRoot) + 1);
+                        setRoot(initialRoot);
+                    }
+                }, []);
+
+                // SVGのレイアウト計算
+                const nodeHeight = 60;
+                const nodeGap = 50;
+                const totalTreeHeight = getSubtreeHeight(
+                    root,
+                    nodeHeight,
+                    nodeGap
+                );
+                const rootY = totalTreeHeight / 2;
+                const xOffset = isMobile ? 130 : 170;
+
+                const positions = layoutTree(
+                    root,
+                    70,
+                    rootY,
+                    {},
+                    null,
+                    nodeHeight,
+                    nodeGap,
+                    true,
+                    xOffset
+                );
+
+                // SVGのサイズ計算（防御的に）
+                const yValues = Object.values(positions).map((pos) => pos.y);
+                const minY = yValues.length ? Math.min(...yValues, 0) : 0;
+                const maxY = yValues.length ? Math.max(...yValues, 0) : 0;
+                const svgHeight = Math.max(maxY - minY + 150, 200); // 最小高さを確保
+                const yOffset = -minY + 50;
+
+                const xValues = Object.values(positions).map((pos) => pos.x);
+                const maxX = xValues.length ? Math.max(...xValues, 0) : 0;
+                const svgWidth = Math.max(maxX + 120, 300); // 最小幅を確保
+
+                return (
+                    <>
+                        <div className="export-import-bar">
+                            {/* エクスポート（JSON） */}
+                            <button onClick={handleExport}>json保存</button>
+
+                            {/* エクスポート（Markdown） */}
+                            <button onClick={handleExportMarkdown}>
+                                Markdown保存
+                            </button>
+
+                            <input
+                                type="file"
+                                id="import-file-input"
+                                accept=".json,.md,application/json,text/markdown"
+                                style={{ display: "none" }}
+                                onChange={handleImport}
+                            />
+                            <button
+                                onClick={() =>
+                                    document
+                                        .getElementById("import-file-input")
+                                        .click()
+                                }
+                            >
+                                インポート
+                            </button>
+
+                            <br />
+
+                            {/* PNGエクスポート */}
+                            <button onClick={handleExportPNG}>
+                                PNG画像保存
+                            </button>
+                            <br />
+
+                            {/* 一時保存・再開 */}
+                            <button onClick={handleSaveTemp}>一時保存</button>
+                            <button onClick={handleResume}>
+                                一時保存から再開
+                            </button>
+                            <br />
+
+                            {/* 新規 */}
+                            <button onClick={handleNew}>新規</button>
+                        </div>
+
+                        <div className="mindmap-container">
+                            <svg
+                                width={svgWidth}
+                                height={svgHeight}
+                                className="mindmap-svg"
+                            >
+                                <g transform={`translate(0,${yOffset})`}>
+                                    <MindMapLinks positions={positions} />
+                                    {Object.values(positions).map((pos) => (
+                                        <MindMapNode
+                                            key={pos.node.id}
+                                            node={pos.node}
+                                            pos={{ ...pos, y: pos.y }}
+                                            onEdit={(id, name, url) => {
+                                                handleEdit(id, name, url);
+                                                setEditingId(null);
+                                            }}
+                                            onAdd={handleAdd}
+                                            onDelete={handleDelete}
+                                            onToggle={handleToggle}
+                                            editingId={editingId}
+                                            setEditingId={setEditingId}
+                                        />
+                                    ))}
+                                </g>
+                            </svg>
+                        </div>
+                    </>
+                );
+            }
+
+            const root = ReactDOM.createRoot(
+                document.getElementById("app-container")
+            );
+            root.render(<MindMapApp />);
+        </script>
+    </body>
 </html>
