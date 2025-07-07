@@ -97,6 +97,61 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script type="text/babel">
+      // --- localStorageユーティリティ---
+      function getMapList() {
+        const list = localStorage.getItem("mapList");
+        return list ? JSON.parse(list) : [];
+      }
+
+      function setMapList() {
+        localStorage.setItem("mapList", JSON.stringify(list));
+      }
+
+      function getMapData(mapId) {
+        const data = localStorage.getItem(`map_${mapId}`);
+        return data ? JSON.parse(data) : null;
+      }
+
+      function setMapData(mapId, mapData) {
+        localStorage.setItem(`map_${mapId}`, JSON.stringify(mapData));
+      }
+
+      function deleteMapData(mapId) {
+        localStorage.removeItem(`map_${mapId}`);
+      }
+
+      //   --- SelectMapListページ---
+      function SelectMapList({ onSelectMap }) {
+        const [maps, setMaps] = React.useState(getMapList());
+        const [title, setTitle] = React.useState("");
+
+        function handleMapCreate() {
+          const t = title.trim();
+          if (!t) return;
+          const id = "map_" + Date.now();
+          const newList = [...maps, newMap];
+          setMapList(newList);
+          setMaps(newList);
+
+          // 初期ツリー
+          setMapData(id, {
+            root: {
+              id: 1,
+              name: t,
+              url: "",
+              collapsed: false,
+              children: [],
+            },
+          });
+
+          setTitle("");
+        }
+
+        function handleMapDelete(id) {
+          // ここから続き
+        }
+      }
+
       // --- ユーティリティ: マークダウン変換 ---
       // ツリー→Markdown
       function treeToMarkdown(node, depth = 0) {
