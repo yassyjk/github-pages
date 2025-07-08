@@ -938,78 +938,95 @@
           URL.revokeObjectURL(url);
         }, [nextNodeId, tree]);
 
-        const handleImport = React.useCallback((event) => {
-          const file = event.target.files[0];
-          if (!file) return;
+        const handleImport = React.useCallback(
+          (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
 
-          const reader = new FileReader();
-          reader.onload = (evt) => {
-            const content = evt.target.result;
+            const reader = new FileReader();
+            reader.onload = (evt) => {
+              const content = evt.target.result;
 
-            // JSONインポート処理
-            function importJson(data) {
-              if (data && data.tree) {
-                const maxId = getMaxId(data.tree);
-                setNextNodeId(Math.max(data.nextNodeId || 0, maxId + 1));
-                setTree(data.tree);
-                // 現在のマップに上書き保存
-                setMapData(mapId, {
-                  nextNodeId: Math.max(data.nextNodeId || 0, maxId + 1),
-                  tree: data.tree,
-                });
-              } else {
-                alert("不正なデータです");
-              }
-            }
+              // JSONインポート処理
+              function importJson(data) {
+                if (data && data.tree) {
+                  const maxId = getMaxId(data.tree);
+                  setNextNodeId(Math.max(data.nextNodeId || 0, maxId + 1));
+                  setTree(data.tree);
+                  // 現在のマップに上書き保存
+                  setMapData(mapId, {
+                    nextNodeId: Math.max(data.nextNodeId || 0, maxId + 1),
+                    tree: data.tree,
+                  });
 
-            // Markdownインポート処理
-            function importMarkdown(md) {
-              const mdTree = markdownToTree(md);
-              if (mdTree) {
-                const maxId = getMaxId(mdTree);
-                setNextNodeId(maxId + 1);
-                setTree(mdTree);
-                // 現在のマップに上書き保存
-                setMapData(mapId, {
-                  nextNodeId: maxId + 1,
-                  tree: mdTree,
-                });
-              } else {
-                alert("マークダウンからツリーを生成できませんでした");
+                  // マップリストのタイトルも更新
+                  const mapList = getMapList();
+                  const updatedList = mapList.map((map) =>
+                    map.id === mapId ? { ...map, title: data.tree.name } : map
+                  );
+                  setLocalMapList(updatedList);
+                } else {
+                  alert("不正なデータです");
+                }
               }
-            }
 
-            // 拡張子で判別
-            if (file.name.endsWith(".json")) {
-              try {
-                const data = JSON.parse(content);
-                importJson(data);
-              } catch (err) {
-                alert("JSONの読み込みに失敗しました: " + err);
+              // Markdownインポート処理
+              function importMarkdown(md) {
+                const mdTree = markdownToTree(md);
+                if (mdTree) {
+                  const maxId = getMaxId(mdTree);
+                  setNextNodeId(maxId + 1);
+                  setTree(mdTree);
+                  // 現在のマップに上書き保存
+                  setMapData(mapId, {
+                    nextNodeId: maxId + 1,
+                    tree: mdTree,
+                  });
+
+                  // マップリストのタイトルも更新
+                  const mapList = getMapList();
+                  const updatedList = mapList.map((map) =>
+                    map.id === mapId ? { ...map, title: mdTree.name } : map
+                  );
+                  setLocalMapList(updatedList);
+                } else {
+                  alert("マークダウンからツリーを生成できませんでした");
+                }
               }
-            } else if (file.name.endsWith(".md")) {
-              try {
-                importMarkdown(content);
-              } catch (err) {
-                alert("Markdownの読み込みに失敗しました: " + err);
-              }
-            } else {
-              // 内容で判別する例（拡張子がない場合など）
-              try {
-                const data = JSON.parse(content);
-                importJson(data);
-              } catch {
+
+              // 拡張子で判別
+              if (file.name.endsWith(".json")) {
+                try {
+                  const data = JSON.parse(content);
+                  importJson(data);
+                } catch (err) {
+                  alert("JSONの読み込みに失敗しました: " + err);
+                }
+              } else if (file.name.endsWith(".md")) {
                 try {
                   importMarkdown(content);
                 } catch (err) {
-                  alert("ファイルの読み込みに失敗しました: " + err);
+                  alert("Markdownの読み込みに失敗しました: " + err);
+                }
+              } else {
+                // 内容で判別する例（拡張子がない場合など）
+                try {
+                  const data = JSON.parse(content);
+                  importJson(data);
+                } catch {
+                  try {
+                    importMarkdown(content);
+                  } catch (err) {
+                    alert("ファイルの読み込みに失敗しました: " + err);
+                  }
                 }
               }
-            }
-          };
-          reader.readAsText(file);
-          event.target.value = null;
-        }, []);
+            };
+            reader.readAsText(file);
+            event.target.value = null;
+          },
+          [mapId]
+        );
 
         // PNGとしてエクスポート処理
         const handleExportPNG = React.useCallback(() => {
