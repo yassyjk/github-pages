@@ -144,7 +144,7 @@
                     if (!t) return;
                     const id = Date.now();
                     const newMap = { id, title: title.trim() };
-                    const newList = [...maps, newMap];
+                    const newList = [newMap, ...maps];
                     setLocalMapList(newList);
                     setList(newList);
 
