@@ -266,9 +266,13 @@
             // --- ユーティリティ: マークダウン変換 ---
             // ツリー→Markdown
             function treeToMarkdown(node, depth = 0) {
-                let md = `${"  ".repeat(depth)}- ${node.name}${
-                    node.url ? "[" + node.url + "]" : ""
-                }\n`;
+                // let md = `${"  ".repeat(depth)}- ${node.name}${
+                //     node.url ? "[" + node.url + "]" : ""
+                // }\n`;
+                const textPart = node.url
+                    ? `[${node.name}](${node.url})`
+                    : node.name;
+                let md = `${"  ".repeat(depth)}- ${textPart}\n`;
                 if (node.children && node.children.length > 0) {
                     for (const child of node.children) {
                         md += treeToMarkdown(child, depth + 1);
@@ -297,13 +301,15 @@
                 }
 
                 for (const line of lines) {
+                    // [text](url) 形式とプレーンテキストの両方に対応する正規表現
                     const match = line.match(
-                        /^(\s*)-\s+([^\[]+?)(?:\s*\[([^\]]+)\])?$/
+                        /^(\s*)-\s+(?:\[([^\]]+)\]\(([^)]*)\)|(.+))$/
                     );
                     if (!match) continue;
                     const indent = match[1].length / 2; // 2スペース単位
-                    const name = match[2].trim();
-                    const url = match[3] ? match[3].trim() : "";
+                    // match[2]とmatch[3]がリンク形式、match[4]がプレーンテキスト
+                    const name = (match[2] || match[4] || "").trim();
+                    const url = (match[3] || "").trim();
                     const node = createNode(name, url);
                     if (indent === 0) {
                         root = node;
