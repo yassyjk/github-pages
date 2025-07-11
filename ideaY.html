@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta charset="UTF-8" />
+    <title>アイデアマップ</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        margin: 0;
+        padding: 0;
+        width: 100svw;
+        height: 100svh;
+        overflow: hidden;
+      }
+      .navbar {
+        position: sticky; /* スクロールしても上部に固定 */
+        top: 0;
+        left: 0;
+        width: 100svw;
+        height: 48px;
+        background: #faf5e5;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        z-index: 100;
+        padding: 0 0 0 16px;
+        margin-bottom: 1em;
+      }
+      ul li:hover {
+        background: #f0f0f0;
+      }
+      .node-edit {
+        width: 140px; /* cols属性を優先 */
+        font-family: "monospace";
+        font-size: 16px;
+        height: 45px;
+        padding: 2px;
+        resize: none;
+        word-break: break-all; /* 追加: 英単語も折り返す */
+        margin-bottom: 4px;
+      }
+      .url-edit {
+        width: 140px;
+        font-size: 14px;
+        padding: 2px;
+      }
+      .mindmap-svg {
+        border: 1px solid #ccc;
+        background: #f9f9f9;
+        display: block;
+      }
+      .mindmap-container {
+        width: 100vw;
+        height: 96svh;
+        margin: 4px;
+        overflow: auto;
+        box-sizing: border-box;
+      }
+      .node-group:hover {
+        filter: drop-shadow(0 2px 2px #92b398);
+      }
+      .node-btn {
+        cursor: pointer;
+        font-size: 18px;
+        background: #fff;
+        border: 1px solid #aaa;
+        border-radius: 50%;
+        width: 22px;
+        height: 22px;
+        line-height: 20px;
+        text-align: center;
+        user-select: none;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .collapse-circle {
+        cursor: pointer;
+        transition: fill 0.2s;
+      }
+      .collapse-circle.has-children {
+        fill: #888;
+      }
+      button {
+        margin: 5px;
+        padding: 5px 10px;
+      }
+      .delete-map-button {
+        margin-left: 2em;
+        background: rgb(255, 203, 211);
+        color: gray;
+        border: none;
+        border-radius: 1em;
+        cursor: pointer;
+        transition: background-color 0.2s, color 0.2s;
+      }
+      .delete-map-button:hover {
+        background: pink; /* PaleVioletRed */
+        color: black;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app-container"></div>
+
+    <!-- ReactとBabel CDN -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <script type="text/babel">
+      // --- localStorageユーティリティ---
+      function getMapList() {
+        const list = localStorage.getItem("mapList");
+        return list ? JSON.parse(list) : [];
+      }
+
+      function setLocalMapList(list) {
+        localStorage.setItem("mapList", JSON.stringify(list));
+      }
+
+      function getMapData(mapId) {
+        const data = localStorage.getItem(`map_${mapId}`);
+        return data ? JSON.parse(data) : null;
+      }
+
+      function setMapData(mapId, mapData) {
+        localStorage.setItem(`map_${mapId}`, JSON.stringify(mapData));
+      }
+
+      function deleteMapData(mapId) {
+        localStorage.removeItem(`map_${mapId}`);
+      }
+
+      //   --- SelectMapListページ---
+      function SelectMapList({ onSelectMap }) {
+        const [maps, setList] = React.useState(getMapList());
+        const [title, setTitle] = React.useState("");
+
+        function handleMapCreate() {
+          const t = title.trim();
+          if (!t) return;
+          const id = Date.now();
+          const newMap = { id, title: title.trim() };
+          const newList = [newMap, ...maps];
+          setLocalMapList(newList);
+          setList(newList);
+
+          // 初期ツリー
+          const initialTree = {
+            id: 1,
+            name: t,
+            url: "",
+            collapsed: false,
+            children: [
+              {
+                id: 2,
+                name: "子1",
+                url: "",
+                collapsed: false,
+                children: [
+                  {
+                    id: 3,
+                    name: "孫1",
+                    url: "",
+                    collapsed: false,
+                    children: [],
+                  },
+                ],
+              },
+              {
+                id: 4,
+                name: "子2",
+                url: "",
+                collapsed: false,
+                children: [
+                  {
+                    id: 5,
+                    name: "孫2",
+                    url: "",
+                    collapsed: false,
+                    children: [],
+                  },
+                ],
+              },
+            ],
+          };
+          const initialNextNodeId = getMaxId(initialTree) + 1;
+          setMapData(id, {
+            tree: initialTree,
+            nextNodeId: initialNextNodeId,
+          });
+
+          setTitle("");
+        }
+
+        function handleMapDelete(id) {
+          if (!window.confirm("本当にこのマップを削除しますか？")) return;
+
+          const newList = maps.filter((m) => m.id !== id);
+          setLocalMapList(newList);
+          setList(newList);
+          deleteMapData(id);
+        }
+
+        function handleFileImport(event) {
+          const file = event.target.files[0];
+          if (!file) return;
+
+          const reader = new FileReader();
+
+          const processTree = (tree) => {
+            if (!tree || !tree.name) {
+              alert("インポートされたデータが不正か、マップ名がありません。");
+              return;
+            }
+            const id = Date.now();
+            const newMap = { id, title: tree.name };
+            const newList = [newMap, ...maps];
+            setLocalMapList(newList);
+            setList(newList);
+
+            const nextNodeId = getMaxId(tree) + 1;
+            setMapData(id, {
+              tree: tree,
+              nextNodeId: nextNodeId,
+            });
+          };
+
+          if (file.name.endsWith(".xlsx")) {
+            reader.onload = (e) => {
+              try {
+                const data = e.target.result;
+                const workbook = XLSX.read(data, { type: "array" });
+                const sheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[sheetName];
+                const json = XLSX.utils.sheet_to_json(worksheet);
+                const tree = excelToTree(json);
+                processTree(tree);
+              } catch (err) {
+                alert("Excelファイルの処理中にエラーが発生しました: " + err);
+              }
+            };
+            reader.readAsArrayBuffer(file);
+          } else {
+            reader.onload = (e) => {
+              const content = e.target.result;
+              try {
+                let tree;
+                if (file.name.endsWith(".md")) {
+                  tree = markdownToTree(content);
+                } else {
+                  const data = JSON.parse(content);
+                  tree = data.tree;
+                }
+                processTree(tree);
+              } catch (err) {
+                alert("ファイルの処理中にエラーが発生しました: " + err);
+              }
+            };
+            reader.readAsText(file);
+          }
+          event.target.value = null;
+        }
+
+        return (
+          <div className="map-list">
+            <header className="navbar">
+              <h2>アイデアマップ一覧</h2>
+            </header>
+            <div style={{ margin: "1em 2em" }}>
+              <input
+                placeholder="新規マップ名"
+                style={{
+                  width: "15em",
+                  height: "2em",
+                }}
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+              />
+              <button onClick={handleMapCreate}>新規作成</button>
+              <button
+                onClick={() =>
+                  document.getElementById("map-list-import-input").click()
+                }
+              >
+                インポート
+              </button>
+              <input
+                type="file"
+                id="map-list-import-input"
+                accept=".json,.md,.xlsx,application/json,text/markdown"
+                style={{ display: "none" }}
+                onChange={handleFileImport}
+              />
+            </div>
+            {maps.length === 0 && <div>マップがありません</div>}
+            <ul style={{ listStyle: "none", padding: "0.5em 1em" }}>
+              {maps.map((map) => (
+                <li
+                  key={map.id}
+                  style={{
+                    margin: "1em 0.5em",
+                    cursor: "pointer",
+                  }}
+                  onClick={() => onSelectMap(map.id)}
+                >
+                  <div
+                    style={{
+                      padding: "0 1em",
+                      border: "1px solid skyblue",
+                      borderRadius: "5px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    {map.title}
+
+                    <button
+                      className="delete-map-button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleMapDelete(map.id);
+                      }}
+                    >
+                      削除
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        );
+      }
+
+      // --- ユーティリティ: マークダウン変換 ---
+      // ツリー→Markdown
+      function treeToMarkdown(node, depth = 0) {
+        // let md = `${"  ".repeat(depth)}- ${node.name}${
+        //     node.url ? "[" + node.url + "]" : ""
+        // }\n`;
+        const textPart = node.url ? `[${node.name}](${node.url})` : node.name;
+        let md = `${"  ".repeat(depth)}- ${textPart}\n`;
+        if (node.children && node.children.length > 0) {
+          for (const child of node.children) {
+            md += treeToMarkdown(child, depth + 1);
+          }
+        }
+        return md;
+      }
+
+      // Markdown→ツリー
+      function markdownToTree(md) {
+        const lines = md.split("\n").filter((line) => line.trim().length > 0);
+        const stack = [];
+        let root = null;
+        let nodeId = 1;
+
+        function createNode(name, url) {
+          return {
+            id: nodeId++,
+            name,
+            url,
+            collapsed: false,
+            children: [],
+          };
+        }
+
+        for (const line of lines) {
+          // [text](url) 形式とプレーンテキストの両方に対応する正規表現
+          const match = line.match(
+            /^(\s*)-\s+(?:\[([^\]]+)\]\(([^)]*)\)|(.+))$/
+          );
+          if (!match) continue;
+          const indent = match[1].length / 2; // 2スペース単位
+          // match[2]とmatch[3]がリンク形式、match[4]がプレーンテキスト
+          const name = (match[2] || match[4] || "").trim();
+          const url = (match[3] || "").trim();
+          const node = createNode(name, url);
+          if (indent === 0) {
+            root = node;
+            stack.length = 0;
+            stack.push({ node, indent });
+          } else {
+            while (stack.length && stack[stack.length - 1].indent >= indent)
+              stack.pop();
+            if (stack.length) {
+              stack[stack.length - 1].node.children.push(node);
+            }
+            stack.push({ node, indent });
+          }
+        }
+        return root;
+      }
+
+      function excelToTree(rows) {
+        if (!rows || rows.length === 0) return null;
+
+        let root = null;
+        const stack = []; // { node, depth }
+        let nodeId = 1;
+
+        function createNode(name, url) {
+          return {
+            id: nodeId++,
+            name,
+            url,
+            collapsed: false,
+            children: [],
+          };
+        }
+
+        for (const row of rows) {
+          let depth = -1;
+          let text = "";
+
+          // データが含まれる列を探して、階層とテキストを特定
+          const levelKeys = Object.keys(row)
+            .filter((k) => k.startsWith("階層 "))
+            .sort(
+              (a, b) =>
+                parseInt(a.replace("階層 ", "")) -
+                parseInt(b.replace("階層 ", ""))
+            );
+
+          for (const key of levelKeys) {
+            if (row[key]) {
+              depth = parseInt(key.replace("階層 ", ""));
+              text = String(row[key]);
+              break;
+            }
+          }
+
+          if (depth === -1) continue; // 空行はスキップ
+
+          // "name (url)" 形式から名前とURLをパース
+          let name = text;
+          let url = "";
+          const urlMatch = text.match(
+            /^(.*)\s\(((?:https?:\/\/)?(?:www\.)?[^\s]+\.[^\s)]+)\)$/
+          );
+          if (urlMatch) {
+            name = urlMatch[1].trim();
+            url = urlMatch[2].trim();
+          }
+
+          const node = createNode(name, url);
+
+          if (depth === 0) {
+            root = node;
+            stack.length = 0;
+            stack.push({ node, depth });
+          } else {
+            while (stack.length > 0 && stack[stack.length - 1].depth >= depth) {
+              stack.pop();
+            }
+            if (stack.length > 0) {
+              stack[stack.length - 1].node.children.push(node);
+            }
+            stack.push({ node, depth });
+          }
+        }
+        return root;
+      }
+
+      // --- ここまでユーティリティ ---
+
+      // 初期ツリー定義
+      const initialTreeData = {
+        root: {
+          id: 1,
+          name: "新しいマップ",
+          url: "",
+          collapsed: false,
+          children: [
+            {
+              id: 2,
+              name: "子1",
+              url: "",
+              collapsed: false,
+              children: [
+                {
+                  id: 3,
+                  name: "孫1",
+                  url: "",
+                  collapsed: false,
+                  children: [],
+                },
+              ],
+            },
+            {
+              id: 4,
+              name: "子2",
+              url: "",
+              collapsed: false,
+              children: [
+                {
+                  id: 5,
+                  name: "孫2",
+                  url: "",
+                  collapsed: false,
+                  children: [],
+                },
+              ],
+            },
+          ],
+        },
+      };
+
+      // ツリー全体から最大IDを取得するヘルパー関数
+      function getMaxId(node) {
+        let maxId = node.id;
+        for (const child of node.children || []) {
+          maxId = Math.max(maxId, getMaxId(child));
+        }
+        return maxId;
+      }
+
+      // レイアウト計算
+      function getSubtreeHeight(node, nodeHeight = 60, nodeGap = 50) {
+        if (
+          !node ||
+          node.collapsed ||
+          !node.children ||
+          node.children.length === 0
+        )
+          return nodeHeight;
+        const total = node.children
+          .map((child) => getSubtreeHeight(child, nodeHeight, nodeGap))
+          .reduce((a, b) => a + b, 0);
+        return total + nodeGap * (node.children.length - 1);
+      }
+
+      function layoutTree(
+        node,
+        x,
+        y,
+        positions = {},
+        parent = null,
+        nodeHeight = 60,
+        nodeGap = 50,
+        isRoot = false,
+        xOffset = 150
+      ) {
+        if (!node) return positions;
+
+        if (
+          isRoot &&
+          node.children &&
+          node.children.length > 0 &&
+          !node.collapsed
+        ) {
+          let childYs = [];
+          let childY = 0;
+          node.children.forEach((child) => {
+            layoutTree(
+              child,
+              x + xOffset,
+              childY,
+              positions,
+              node,
+              nodeHeight,
+              nodeGap,
+              false,
+              xOffset
+            );
+            childYs.push(positions[child.id].y);
+            childY += getSubtreeHeight(child, nodeHeight, nodeGap) + nodeGap;
+          });
+          const maxY = childYs.length > 0 ? Math.max(...childYs) : 0;
+          y = maxY / 2;
+          positions[node.id] = { x, y, node, parent };
+        } else if (
+          isRoot &&
+          node.children &&
+          node.children.length > 0 &&
+          node.collapsed
+        ) {
+          positions[node.id] = { x, y, node, parent };
+        } else {
+          positions[node.id] = { x, y, node, parent };
+          if (!node.collapsed && node.children && node.children.length > 0) {
+            let childY = isRoot ? 0 : y;
+            node.children.forEach((child) => {
+              layoutTree(
+                child,
+                x + xOffset,
+                childY,
+                positions,
+                node,
+                nodeHeight,
+                nodeGap,
+                false,
+                xOffset
+              );
+              const childSubtreeHeight = getSubtreeHeight(
+                child,
+                nodeHeight,
+                nodeGap
+              );
+              childY += childSubtreeHeight + nodeGap;
+            });
+          }
+        }
+        return positions;
+      }
+
+      function CollapseCircle({ x, y, hasChildren, collapsed, onClick }) {
+        let fillColor = "#fff";
+        if (hasChildren) fillColor = collapsed ? "orange" : "#888";
+        return (
+          <circle
+            cx={x}
+            cy={y}
+            r={9}
+            stroke="#888" //丸枠
+            strokeWidth={2} //丸枠の太さ
+            className="collapse-circle"
+            fill={fillColor}
+            onClick={hasChildren ? onClick : undefined}
+          />
+        );
+      }
+
+      // textの折り返し
+      function wrapText(text, maxCharsPerLine = 8) {
+        if (typeof text !== "string") text = "";
+        const lines = [];
+        let current = "";
+        for (let c of text) {
+          current += c;
+          if (current.length >= maxCharsPerLine) {
+            lines.push(current);
+            current = "";
+          }
+        }
+        if (current) lines.push(current);
+        return lines;
+      }
+
+      function MindMapNode({
+        node,
+        pos,
+        onEdit,
+        onAdd,
+        onDelete,
+        onToggle,
+        editingId,
+        isRoot,
+        setEditingId,
+      }) {
+        // textareaの末尾にfocus
+        const textareaRef = React.useRef(null);
+        const urlRef = React.useRef(null);
+        // テキスト幅計算用
+        const textRef = React.useRef();
+        const [textWidth, setTextWidth] = React.useState(0);
+
+        const [tempName, setTempName] = React.useState(node.name || "");
+        const [tempUrl, setTempUrl] = React.useState(node.url || "");
+
+        React.useEffect(() => {
+          setTempName(node.name || "");
+          setTempUrl(node.url || "");
+        }, [node.name, node.url, editingId]);
+
+        // テキスト幅を設定
+        React.useEffect(() => {
+          if (textRef.current) {
+            setTextWidth(textRef.current.getBBox().width);
+          }
+        }, [node.name, editingId]);
+
+        // 編集確定処理
+        const confirmEdit = React.useCallback(() => {
+          onEdit(
+            node.id,
+            tempName.trim() === "" ? "空" : tempName,
+            tempUrl.trim()
+          );
+          setEditingId(null);
+        }, [node.id, tempName, tempUrl, onEdit, setEditingId]);
+
+        // onBlurで即確定
+        const handleBlur = (e) => {
+          // フォーカス先が同じforeignObject内かチェック
+          // e.relatedTargetはinput/textarea間の移動時に次の要素を指す
+          if (
+            e.relatedTarget &&
+            (e.relatedTarget.className === "node-edit" ||
+              e.relatedTarget.className === "url-edit")
+          ) {
+            // 他の編集フィールドに移動しただけなので何もしない
+            return;
+          }
+          // それ以外（枠外クリックや他のノードクリック）は確定
+          confirmEdit();
+        };
+
+        const circleX = 0,
+          circleY = 0;
+
+        return (
+          <g className="node-group" transform={`translate(${pos.x},${pos.y})`}>
+            <CollapseCircle
+              x={circleX}
+              y={circleY}
+              hasChildren={node.children && node.children.length > 0}
+              collapsed={node.collapsed}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (node.children && node.children.length > 0)
+                  onToggle(node.id);
+              }}
+            />
+            {editingId === node.id ? (
+              <foreignObject x={-50} y={15} width={170} height={100}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                  }}
+                >
+                  <textarea
+                    ref={textareaRef}
+                    className="node-edit"
+                    cols="8"
+                    placeholder="20字程度まで"
+                    value={tempName}
+                    onChange={(e) => setTempName(e.target.value)}
+                    onFocus={(e) => {
+                      const val = e.target.value;
+                      e.target.setSelectionRange(val.length, val.length);
+                    }}
+                    onBlur={handleBlur}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        confirmEdit();
+                      }
+                    }}
+                    autoFocus
+                    tabIndex={0}
+                  />
+                  <input
+                    ref={urlRef}
+                    className="url-edit"
+                    type="text"
+                    placeholder="URLリンク(任意)"
+                    value={tempUrl}
+                    onChange={(e) => setTempUrl(e.target.value)}
+                    onFocus={(e) => {
+                      const val = e.target.value;
+                      e.target.setSelectionRange(val.length, val.length);
+                    }}
+                    onBlur={handleBlur}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        confirmEdit();
+                      }
+                    }}
+                    tabIndex={0}
+                  />
+                </div>
+              </foreignObject>
+            ) : node.url ? (
+              <text
+                ref={textRef}
+                x={0}
+                y={35}
+                textAnchor="middle"
+                style={{
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  textDecoration: "underline",
+                  fill: "blue",
+                  marginLeft: "10px",
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setEditingId(node.id);
+                }}
+              >
+                {wrapText(node.name, 8).map((line, i) => (
+                  <tspan key={i} x={0} dy={i === 0 ? 0 : 16}>
+                    {line}
+                  </tspan>
+                ))}
+              </text>
+            ) : (
+              <text
+                ref={textRef}
+                x={0}
+                y={35}
+                textAnchor="middle"
+                style={{
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  marginLeft: "10px",
+                }}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setEditingId(node.id);
+                }}
+              >
+                {wrapText(node.name, 8).map((line, i) => (
+                  <tspan key={i} x={0} dy={i === 0 ? 0 : 16}>
+                    {line}
+                  </tspan>
+                ))}
+              </text>
+            )}
+            {/* 編集ボタンをテキストの右端にforeignObjectで配置 */}
+            {editingId !== node.id && node.url && (
+              <foreignObject
+                x={textWidth / 2 + 10} // テキストの右端＋余白
+                y={20} // テキストのy座標に合わせる
+                width={24}
+                height={24}
+                style={{ overflow: "visible" }}
+              >
+                <div
+                  title="URLリンク"
+                  style={{
+                    width: 24,
+                    height: 24,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    fontSize: "18px",
+                  }}
+                  onClick={() => {
+                    window.open(node.url, "_blank");
+                  }}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" />
+                    <polyline points="15 3 21 3 21 9" />
+                    <line x1="10" y1="14" x2="21" y2="3" />
+                  </svg>
+                </div>
+              </foreignObject>
+            )}
+
+            {/* add/delボタン */}
+            {!editingId && (
+              <foreignObject x={25} y={-15} width={70} height={40}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "row",
+                    alignItems: "start",
+                    justifyContent: "flex-start",
+                    height: "30px",
+                    width: "100px",
+                    gap: "15px",
+                  }}
+                >
+                  <div
+                    className="node-btn add"
+                    title="子追加"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAdd(node.id);
+                    }}
+                  >
+                    ＋
+                  </div>
+
+                  {!isRoot && (
+                    <div
+                      className="node-btn del"
+                      title="削除"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDelete(node.id);
+                      }}
+                    >
+                      －
+                    </div>
+                  )}
+                </div>
+              </foreignObject>
+            )}
+          </g>
+        );
+      }
+
+      function MindMapLinks({ positions }) {
+        const lines = [];
+        Object.values(positions).forEach((pos) => {
+          if (pos.parent) {
+            const parentPos = positions[pos.parent.id];
+            lines.push(
+              <line
+                key={pos.node.id}
+                x1={parentPos.x}
+                y1={parentPos.y}
+                x2={pos.x}
+                y2={pos.y}
+                stroke="#ddd"
+                strokeWidth={2}
+              />
+            );
+          }
+        });
+        return <g>{lines}</g>;
+      }
+
+      function editNode(node, id, fn) {
+        if (node.id === id) return fn(node);
+        return {
+          ...node,
+          children: (node.children || []).map((child) =>
+            editNode(child, id, fn)
+          ),
+        };
+      }
+
+      function deleteNode(node, id) {
+        return {
+          ...node,
+          children: (node.children || [])
+            .filter((child) => child.id !== id)
+            .map((child) => deleteNode(child, id)),
+        };
+      }
+
+      function HamburgerMenu({ children, setMenuOpen, menuOpen }) {
+        return (
+          <div>
+            {menuOpen ? (
+              <button
+                id="hamburger-btn"
+                style={{
+                  fontSize: 28,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  position: "fixed",
+                  top: 0,
+                  right: 32,
+                  zIndex: 2000,
+                }}
+                onClick={() => setMenuOpen((prev) => !prev)}
+              >
+                ×
+              </button>
+            ) : (
+              <button
+                id="hamburger-btn"
+                style={{
+                  fontSize: 24,
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  position: "fixed",
+                  top: 0,
+                  right: 32,
+                  zIndex: 2000,
+                }}
+                onClick={() => setMenuOpen((prev) => !prev)}
+              >
+                ≡
+              </button>
+            )}
+            {menuOpen && (
+              <div
+                id="hamburger-menu"
+                style={{
+                  position: "absolute",
+                  top: 40,
+                  right: 28,
+                  zIndex: 2000,
+                  background: "#fff",
+                  border: "1px solid #ccc",
+                  borderRadius: 8,
+                  padding: 10,
+                  minWidth: 180,
+                  boxShadow: "0 2px 8px #aaa",
+                }}
+              >
+                {children}
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      function MindMapApp({ mapId, onBack }) {
+        // --- Stateの初期化 ---
+        const initializer = () => {
+          const savedData = getMapData(mapId);
+          if (savedData && savedData.tree) {
+            // localStorageにデータがある場合
+            const maxId = getMaxId(savedData.tree);
+            return {
+              tree: savedData.tree,
+              nextNodeId: Math.max(savedData.nextNodeId || 0, maxId + 1),
+            };
+          }
+          // データがない場合（フォールバック）
+          const defaultTree = JSON.parse(JSON.stringify(initialTreeData.root));
+          return {
+            tree: defaultTree,
+            nextNodeId: getMaxId(defaultTree) + 1,
+          };
+        };
+
+        const [tree, setTree] = React.useState(() => initializer().tree);
+        const [nextNodeId, setNextNodeId] = React.useState(
+          () => initializer().nextNodeId
+        );
+
+        const [editingId, setEditingId] = React.useState(null);
+        const [isMobile, setIsMobile] = React.useState(
+          window.matchMedia("(max-width: 767px)").matches
+        );
+
+        // localStorageの保存データを取得
+        const getSavedRoot = () => {};
+
+        // ハンバーガーメニューの開く・閉じる
+        const [menuOpen, setMenuOpen] = React.useState(false);
+
+        // ノードを生成する関数
+        const createNode = React.useCallback(
+          (name = "項目", children = [], collapsed = false) => {
+            const newId = nextNodeId;
+            setNextNodeId((prev) => prev + 1);
+            return {
+              id: newId,
+              name,
+              children: children || [],
+              collapsed,
+            };
+          },
+          [nextNodeId]
+        );
+
+        React.useEffect(() => {
+          const handler = () => {
+            setIsMobile(window.matchMedia("(max-width: 767px)").matches);
+          };
+          window.addEventListener("resize", handler);
+          return () => window.removeEventListener("resize", handler);
+        }, []);
+
+        React.useEffect(() => {
+          const mapData = { nextNodeId, tree };
+          setMapData(mapId, mapData);
+        }, [nextNodeId, tree]);
+
+        const handleEdit = React.useCallback(
+          (id, newName, newUrl) => {
+            setTree((prev) => {
+              const newTree = editNode(prev, id, (node) => ({
+                ...node,
+                name: newName,
+                url: newUrl,
+              }));
+
+              // ルートノードの名前が変更された場合、マップリストのタイトルも更新
+              if (id === newTree.id) {
+                const mapList = getMapList();
+                const updatedList = mapList.map((map) =>
+                  map.id === mapId ? { ...map, title: newName } : map
+                );
+                setLocalMapList(updatedList);
+              }
+              return newTree;
+            });
+          },
+          [mapId]
+        );
+
+        const handleAdd = React.useCallback(
+          (id) => {
+            setTree((prev) =>
+              editNode(prev, id, (node) => ({
+                ...node,
+                children: [...(node.children || []), createNode("項目")],
+              }))
+            );
+          },
+          [createNode]
+        );
+
+        const handleDelete = React.useCallback(
+          (id) => {
+            if (!tree || tree.id === id) return; // ルートノードは削除不可
+            if (window.confirm("本当にこのノードを削除しますか？")) {
+              setTree((prev) => deleteNode(prev, id));
+            }
+          },
+          [tree]
+        );
+
+        const handleToggle = React.useCallback((id) => {
+          setTree((prev) =>
+            editNode(prev, id, (node) => ({
+              ...node,
+              collapsed: !node.collapsed,
+            }))
+          );
+        }, []);
+
+        // エクスポート処理
+        const handleExport = React.useCallback(() => {
+          const exportObj = { nextNodeId, tree };
+          const blob = new Blob([JSON.stringify(exportObj, null, 2)], {
+            type: "application/json",
+          });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+
+          const saveName = (tree.name || "ideaMap").replace(
+            /[\\/:*?"<>|]/g,
+            "_"
+          );
+          a.download = `${saveName}.json`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }, [nextNodeId, tree]);
+
+        // --- Markdownエクスポート ---
+        const handleExportMarkdown = React.useCallback(() => {
+          const md = treeToMarkdown(tree);
+          const blob = new Blob([md], { type: "text/markdown" });
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+
+          const saveName = (tree.name || "ideaMap").replace(
+            /[\\/:*?"<>|]/g,
+            "_"
+          );
+          a.download = `${saveName}.md`;
+          a.click();
+          URL.revokeObjectURL(url);
+        }, [tree]);
+
+        const handleExportExcel = React.useCallback(() => {
+          // tree構造を階層ごとに列をずらした配列に変換
+          const flattenTreeForExcel = (
+            node,
+            depth = 0,
+            rows = [],
+            maxDepthInfo = { max: 0 }
+          ) => {
+            // 初回呼び出し時にツリー全体の最大深度を計算
+            if (depth === 0) {
+              const findMaxDepth = (n, d = 0) => {
+                let max = d;
+                if (n.children) {
+                  for (const child of n.children) {
+                    max = Math.max(max, findMaxDepth(child, d + 1));
+                  }
+                }
+                return max;
+              };
+              maxDepthInfo.max = findMaxDepth(node);
+            }
+
+            const row = {};
+            // ヘッダー列を生成
+            for (let i = 0; i <= maxDepthInfo.max; i++) {
+              row[`階層 ${i}`] = "";
+            }
+
+            // nameとurlを結合して適切な列に配置
+            const nodeText = node.url
+              ? `${node.name} (${node.url})`
+              : node.name;
+            row[`階層 ${depth}`] = nodeText;
+            rows.push(row);
+
+            if (node.children) {
+              node.children.forEach((child) => {
+                flattenTreeForExcel(child, depth + 1, rows, maxDepthInfo);
+              });
+            }
+            return rows;
+          };
+
+          const data = flattenTreeForExcel(tree);
+
+          // ワークシート作成
+          const worksheet = XLSX.utils.json_to_sheet(data);
+          const workbook = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(workbook, worksheet, "Tree");
+
+          // ファイル名の整形
+          const saveName = (tree.name || "ideaMap").replace(
+            /[\\/:*?"<>|]/g,
+            "_"
+          );
+
+          // Excelファイルとして保存
+          XLSX.writeFile(workbook, `${saveName}.xlsx`);
+        }, [tree]);
+
+        // PNGとしてエクスポート処理
+        const handleExportPNG = React.useCallback(() => {
+          const svgElem = document.querySelector(".mindmap-svg");
+          if (!svgElem) {
+            alert("SVGが見つかりません");
+            return;
+          }
+
+          // 現在の背景色を保存
+          // const prevBg = svgElem.style.background;
+          //svgElem.style.background = "transparent";
+
+          // 1. ボタンを非表示にする
+          const btns = svgElem.querySelectorAll(".node-btn");
+          const prevDisplays = [];
+          btns.forEach((btn, i) => {
+            prevDisplays[i] = btn.style.display;
+            btn.style.display = "none";
+          });
+
+          // 2. SVGをシリアライズ
+          const serializer = new XMLSerializer();
+          let source = serializer.serializeToString(svgElem);
+
+          // SVGにxmlns属性を追加（必要な場合）
+          if (
+            !source.match(/^<svg[^>]+xmlns="http:\/\/www\.w3\.org\/2000\/svg"/)
+          ) {
+            source = source.replace(
+              /^<svg/,
+              '<svg xmlns="http://www.w3.org/2000/svg"'
+            );
+          }
+
+          // SVGデータを画像として読み込む
+          const svg64 = btoa(unescape(encodeURIComponent(source)));
+          const image64 = "data:image/svg+xml;base64," + svg64;
+
+          const img = new window.Image();
+          const width = svgElem.width.baseVal.value || 800;
+          const height = svgElem.height.baseVal.value || 600;
+          img.onload = function () {
+            const canvas = document.createElement("canvas");
+            canvas.width = width;
+            canvas.height = height;
+            const ctx = canvas.getContext("2d");
+
+            ctx.fillStyle = "#fff";
+            ctx.fillRect(0, 0, width, height);
+
+            ctx.drawImage(img, 0, 0, width, height);
+
+            canvas.toBlob((blob) => {
+              // 背景色を元に戻す
+              // svgElem.style.background = prevBg;
+
+              // 4. ボタンを元に戻す
+              btns.forEach((btn, i) => {
+                btn.style.display = prevDisplays[i];
+              });
+
+              if (blob) {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+
+                const saveName = (tree.name || "ideaMap").replace(
+                  /[\\/:*?"<>|]/g,
+                  "_"
+                );
+                a.download = `${saveName}.png`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }
+            }, "image/png");
+          };
+          img.onerror = function () {
+            // 4. ボタンを元に戻す
+            btns.forEach((btn, i) => {
+              btn.style.display = prevDisplays[i];
+            });
+            alert("画像変換に失敗しました");
+          };
+          img.src = image64;
+        }, [tree]);
+
+        // 新規作成処理
+        const handleNew = React.useCallback(() => {
+          if (
+            window.confirm(
+              "新規作成します。現在の内容は失われます。よろしいですか？"
+            )
+          ) {
+            // 現在のマップ名（tree.name）を維持する
+            const currentMapName = tree ? tree.name : "新しいマップ";
+            const initialRoot = JSON.parse(
+              JSON.stringify(initialTreeData.root)
+            );
+            initialRoot.name = currentMapName; // rootの名前を現在のマップ名で上書き
+
+            setNextNodeId(getMaxId(initialRoot) + 1);
+            setTree(initialRoot);
+          }
+        }, [tree]);
+
+        // SVGのレイアウト計算
+        if (!tree) return <div>Loading...</div>; // treeがnullの場合のガード
+
+        const nodeHeight = 60;
+        const nodeGap = 50;
+        const totalTreeHeight = getSubtreeHeight(tree, nodeHeight, nodeGap);
+        const rootY = totalTreeHeight / 2;
+        const xOffset = isMobile ? 130 : 170;
+
+        const positions = layoutTree(
+          tree,
+          70,
+          rootY,
+          {},
+          null,
+          nodeHeight,
+          nodeGap,
+          true,
+          xOffset
+        );
+
+        // SVGのサイズ計算（防御的に）
+        const yValues = Object.values(positions).map((pos) => pos.y);
+        const minY = yValues.length ? Math.min(...yValues, 0) : 0;
+        const maxY = yValues.length ? Math.max(...yValues, 0) : 0;
+        const svgHeight = Math.max(maxY - minY + 200, 200); // 最小高さを確保
+        const yOffset = -minY + 50;
+
+        const xValues = Object.values(positions).map((pos) => pos.x);
+        const maxX = xValues.length ? Math.max(...xValues, 0) : 0;
+        const svgWidth = Math.max(maxX + 120, 300); // 最小幅を確保
+
+        return (
+          <>
+            <header className="navbar">
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <div
+                  style={{
+                    background: "white",
+                    border: "1px solid lightgray",
+                    padding: "4px",
+                    color: "gray",
+                    fontSize: "0.5em",
+                    cursor: "pointer",
+                    marginRight: "1em",
+                    borderRadius: "4px",
+                  }}
+                  onClick={onBack}
+                >
+                  ← Back
+                </div>
+                <h3 style={{ margin: "0 1em" }}>{tree.name}</h3>
+              </div>
+
+              <HamburgerMenu menuOpen={menuOpen} setMenuOpen={setMenuOpen}>
+                <ul
+                  style={{
+                    listStyle: "none",
+                    margin: 0,
+                    padding: 0,
+                    minWidth: 150,
+                  }}
+                >
+                  <li
+                    style={{
+                      padding: "8px 0",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      handleExport();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    📄 json保存
+                  </li>
+                  <li
+                    style={{
+                      padding: "8px 0",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      handleExportMarkdown();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    📝 Markdown保存
+                  </li>
+
+                  <li
+                    style={{
+                      padding: "8px 0",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      handleExportExcel();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    📄 xlsx保存
+                  </li>
+
+                  <li
+                    style={{
+                      padding: "8px 0",
+                      cursor: "pointer",
+                    }}
+                    onClick={() => {
+                      handleExportPNG();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    🖼 PNG画像保存
+                  </li>
+                </ul>
+              </HamburgerMenu>
+            </header>
+
+            <div className="mindmap-container">
+              <svg width={svgWidth} height={svgHeight} className="mindmap-svg">
+                <g transform={`translate(0,${yOffset})`}>
+                  <MindMapLinks positions={positions} />
+                  {Object.values(positions).map((pos) => (
+                    <MindMapNode
+                      key={pos.node.id}
+                      node={pos.node}
+                      pos={{ ...pos, y: pos.y }}
+                      onEdit={(id, name, url) => {
+                        handleEdit(id, name, url);
+                        setEditingId(null);
+                      }}
+                      onAdd={handleAdd}
+                      onDelete={handleDelete}
+                      onToggle={handleToggle}
+                      editingId={editingId}
+                      isRoot={pos.node.id === tree.id}
+                      setEditingId={setEditingId}
+                    />
+                  ))}
+                </g>
+              </svg>
+            </div>
+          </>
+        );
+      }
+
+      function App() {
+        // const handleBack = () => setSelectedMapId(null);
+
+        // history.stateから初期mapIdを取得
+        const getInitialMapId = () => {
+          return history.state && history.state.mapId
+            ? history.state.mapId
+            : null;
+        };
+
+        const [selectedMapId, setSelectedMapId] = React.useState(
+          getInitialMapId()
+        );
+
+        // popstateイベント（ブラウザの戻る、進む）を監視
+        React.useEffect(() => {
+          const handlePopState = (event) => {
+            // stateオブジェクトからmapIdを取得
+            const mapId =
+              event.state && event.state.mapId ? event.state.mapId : null;
+            setSelectedMapId(mapId);
+          };
+
+          window.addEventListener("popstate", handlePopState);
+          return () => {
+            window.removeEventListener("popstate", handlePopState);
+          };
+        }, []);
+
+        const handleSelectMap = (mapId) => {
+          // URLを変更せずに、履歴を更新
+          history.pushState({ mapId }, "", window.location.href);
+          setSelectedMapId(mapId);
+        };
+
+        const handleBack = () => history.back();
+
+        return selectedMapId ? (
+          <MindMapApp mapId={selectedMapId} onBack={handleBack} />
+        ) : (
+          <SelectMapList onSelectMap={handleSelectMap} />
+        );
+      }
+
+      const root = ReactDOM.createRoot(
+        document.getElementById("app-container")
+      );
+      root.render(<App />);
+    </script>
+  </body>
+</html>
