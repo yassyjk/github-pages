@@ -40,7 +40,7 @@
       }
       .url-edit {
         width: 140px;
-        font-size: 14px;
+        font-size: 13px;
         padding: 2px;
       }
       .mindmap-svg {
@@ -1343,7 +1343,7 @@
         const yValues = Object.values(positions).map((pos) => pos.y);
         const minY = yValues.length ? Math.min(...yValues, 0) : 0;
         const maxY = yValues.length ? Math.max(...yValues, 0) : 0;
-        const svgHeight = Math.max(maxY - minY + 200, 200); // 最小高さを確保
+        const svgHeight = Math.max(maxY - minY + 160, 200); // 最小高さを確保
         const yOffset = -minY + 50;
 
         const xValues = Object.values(positions).map((pos) => pos.x);
