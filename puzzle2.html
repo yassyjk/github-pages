@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8" />
+        <style>
+            body {
+                min-height: 100svh;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                align-items: center;
+                margin: 0;
+                background: antiquewhite;
+            }
+            input {
+                font-size: 3rem;
+            }
+            .puzzle-container {
+                width: 100vw;
+                height: 100vw;
+                margin: 0px auto;
+                position: relative;
+                background: #e3f8ce;
+            }
+
+            .grid {
+                display: grid;
+                position: absolute;
+                border: 2px solid #ccc;
+            }
+            .grid-cell {
+                border: 1px dashed #888;
+                background: rgba(0, 0, 0, 0.1);
+            }
+            .tile {
+                position: absolute;
+                transition: all 0.3s;
+                background-size: cover;
+                background-position: center;
+                cursor: pointer;
+            }
+            .tile.selected {
+                outline: 8px solid greenyellow;
+            }
+            .piece-selector {
+                margin: 10px auto;
+                text-align: center;
+                font-size: 3rem;
+            }
+            select,
+            option,
+            #timer {
+                font-size: 3rem;
+            }
+
+            #loading {
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(255, 255, 255, 0.7);
+                z-index: 100;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+            }
+
+            .loadingMessage {
+                font-size: 3rem;
+                color: #333;
+                background: #fffbe8;
+                padding: 2em 2em;
+                border-radius: 1em;
+                box-shadow: 0 0 10px #ccc;
+            }
+
+            @media (min-width: 1024px) {
+                .puzzle-container {
+                    width: 90svh;
+                    height: 90svh;
+                    max-width: 100vw;
+                    max-height: 110svh;
+                }
+                input {
+                    font-size: 1rem;
+                }
+                .piece-selector {
+                    margin: 10px auto;
+                    text-align: center;
+                    font-size: 1rem;
+                }
+                select,
+                option,
+                #timer {
+                    font-size: 1rem;
+                }
+                .loadingMessage {
+                    font-size: 1.5rem;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <input type="file" id="imageInput" accept="image/*" />
+        <div class="piece-selector">
+            <label for="pieceCount">分割数: </label>
+            <select id="pieceCount">
+                <option value="3">3×3</option>
+                <option value="4">4×4</option>
+                <option value="5">5×5</option>
+            </select>
+        </div>
+        <div id="timer">00:00.00</div>
+        <div class="puzzle-container">
+            <div id="loading" style="display: none">
+                <div class="loadingMessage">処理中..ちょっと待ってね。</div>
+            </div>
+            <div id="grid" class="grid"></div>
+            <div id="puzzleContainer"></div>
+        </div>
+        <script>
+            let tiles = [];
+            let selectedTile = null;
+            let gridWidth = 0,
+                gridHeight = 0;
+            let pieceCols = 0,
+                pieceRows = 0;
+            let timerInterval;
+            let startTime;
+            let isTimerRunning = false;
+
+            // タイマー表示を更新
+            function updateTimer() {
+                const currentTime = Date.now();
+                const elapsedTime = currentTime - startTime;
+                const minutes = Math.floor(elapsedTime / 60000);
+                const seconds = Math.floor((elapsedTime % 60000) / 1000);
+                const milliseconds = Math.floor((elapsedTime % 1000) / 10);
+                document.getElementById("timer").textContent = `${String(
+                    minutes
+                ).padStart(2, "0")}:${String(seconds).padStart(
+                    2,
+                    "0"
+                )}.${String(milliseconds).padStart(2, "0")}`;
+            }
+
+            // タイマー開始
+            function startTimer() {
+                if (isTimerRunning) return;
+                startTime = Date.now();
+                isTimerRunning = true;
+                timerInterval = setInterval(updateTimer, 10);
+            }
+
+            // タイマー停止
+            function stopTimer() {
+                if (!isTimerRunning) return;
+                clearInterval(timerInterval);
+                isTimerRunning = false;
+            }
+
+            // 画像を読み込んでパズル生成
+            function createPuzzle(imageSrc) {
+                showLoading();
+
+                const container = document.getElementById("puzzleContainer");
+                container.innerHTML = "";
+
+                // ★ パズルコンテナのサイズを取得してピースサイズを決定
+                const puzzleContainer =
+                    document.querySelector(".puzzle-container");
+                const rect = puzzleContainer.getBoundingClientRect();
+                gridWidth = rect.width;
+                gridHeight = rect.height;
+
+                const img = new Image();
+                img.onload = function () {
+                    const size = Math.max(img.width, img.height);
+                    const canvas = document.createElement("canvas");
+                    const ctx = canvas.getContext("2d");
+                    canvas.width = size;
+                    canvas.height = size;
+                    const offsetX = (size - img.width) / 2;
+                    const offsetY = (size - img.height) / 2;
+                    ctx.drawImage(img, offsetX, offsetY, img.width, img.height);
+
+                    const pieceCount = parseInt(
+                        document.getElementById("pieceCount").value
+                    );
+                    pieceCols = pieceCount;
+                    pieceRows = pieceCount;
+                    initGrid(pieceCols, pieceRows, gridWidth, gridHeight);
+
+                    tiles = [];
+                    for (let i = 0; i < pieceCols * pieceRows; i++) {
+                        const col = i % pieceCols;
+                        const row = Math.floor(i / pieceCols);
+                        const pieceWidth = size / pieceCols;
+                        const pieceHeight = size / pieceRows;
+                        const x = col * pieceWidth;
+                        const y = row * pieceHeight;
+                        const tileCanvas = document.createElement("canvas");
+                        tileCanvas.width = pieceWidth;
+                        tileCanvas.height = pieceHeight;
+                        tileCanvas
+                            .getContext("2d")
+                            .drawImage(
+                                canvas,
+                                x,
+                                y,
+                                pieceWidth,
+                                pieceHeight,
+                                0,
+                                0,
+                                pieceWidth,
+                                pieceHeight
+                            );
+                        const tile = document.createElement("div");
+                        tile.className = "tile";
+                        // ★ ピースサイズをパズルコンテナに合わせる
+                        tile.style.width = gridWidth / pieceCols + "px";
+                        tile.style.height = gridHeight / pieceRows + "px";
+                        tile.style.backgroundImage = `url(${tileCanvas.toDataURL()})`;
+                        tile.dataset.originalPosition = i;
+                        tile.dataset.currentPosition = i;
+                        tile.addEventListener("click", handleTileClick);
+                        tiles.push(tile);
+                    }
+                    shuffleTiles();
+                    tiles.forEach((tile) => container.appendChild(tile));
+
+                    hideLoading();
+                };
+                img.src = imageSrc;
+            }
+
+            // グリッドの初期化
+            function initGrid(cols, rows, containerWidth, containerHeight) {
+                const grid = document.getElementById("grid");
+                grid.innerHTML = "";
+                grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+                grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+                grid.style.width = containerWidth + "px";
+                grid.style.height = containerHeight + "px";
+                for (let i = 0; i < cols * rows; i++) {
+                    const cell = document.createElement("div");
+                    cell.className = "grid-cell";
+                    grid.appendChild(cell);
+                }
+            }
+
+            // ピースをシャッフル
+            function shuffleTiles() {
+                const positions = [...Array(pieceCols * pieceRows).keys()].sort(
+                    () => Math.random() - 0.5
+                );
+                tiles.forEach((tile, index) => {
+                    const pos = getGridPosition(positions[index]);
+                    tile.style.left = pos.x + "px";
+                    tile.style.top = pos.y + "px";
+                    tile.dataset.currentPosition = positions[index];
+                });
+            }
+
+            // グリッド上の位置を取得
+            function getGridPosition(index) {
+                const col = index % pieceCols;
+                const row = Math.floor(index / pieceCols);
+                return {
+                    x: col * (gridWidth / pieceCols),
+                    y: row * (gridHeight / pieceRows),
+                };
+            }
+
+            // ピースのクリック処理
+            function handleTileClick(e) {
+                const clickedTile = e.currentTarget;
+                // 1つ目を選択
+                if (!selectedTile) {
+                    selectedTile = clickedTile;
+                    selectedTile.classList.add("selected");
+                    // 最初のピースを動かしたらタイマー開始
+                    if (!isTimerRunning) startTimer();
+                    return;
+                }
+                // 同じピースをクリックした場合は選択解除
+                if (selectedTile === clickedTile) {
+                    selectedTile.classList.remove("selected");
+                    selectedTile = null;
+                    return;
+                }
+                // 2つ目をクリックしたら入れ替え
+                swapTiles(selectedTile, clickedTile);
+                // 選択解除
+                selectedTile.classList.remove("selected");
+                selectedTile = null;
+                // 完成チェック
+                checkCompletion();
+            }
+
+            // ピースの入れ替え
+            function swapTiles(tile1, tile2) {
+                const pos1 = parseInt(tile1.dataset.currentPosition);
+                const pos2 = parseInt(tile2.dataset.currentPosition);
+                tile1.dataset.currentPosition = pos2;
+                tile2.dataset.currentPosition = pos1;
+                const pos1XY = getGridPosition(pos2);
+                const pos2XY = getGridPosition(pos1);
+                tile1.style.left = pos1XY.x + "px";
+                tile1.style.top = pos1XY.y + "px";
+                tile2.style.left = pos2XY.x + "px";
+                tile2.style.top = pos2XY.y + "px";
+            }
+
+            // 完成チェック
+            function checkCompletion() {
+                const isComplete = tiles.every(
+                    (tile) =>
+                        parseInt(tile.dataset.originalPosition) ===
+                        parseInt(tile.dataset.currentPosition)
+                );
+                if (isComplete) {
+                    stopTimer();
+                    setTimeout(() => alert("パズル完成！"), 500);
+                }
+            }
+
+            // 画像ファイルの読み込み
+            document
+                .getElementById("imageInput")
+                .addEventListener("change", function (e) {
+                    const file = e.target.files[0];
+                    const reader = new FileReader();
+                    reader.onload = (event) =>
+                        createPuzzle(event.target.result);
+                    reader.readAsDataURL(file);
+                });
+
+            // 分割数変更時も再描画できるように
+            document
+                .getElementById("pieceCount")
+                .addEventListener("change", function () {
+                    document.getElementById("puzzleContainer").innerHTML = "";
+                    document.getElementById("grid").innerHTML = "";
+                    document.getElementById("timer").textContent = "00:00.00";
+                    stopTimer();
+                });
+
+            // ウィンドウリサイズ時にパズルをリサイズ（オプション）
+            window.addEventListener("resize", () => {
+                // 画像が読み込まれていれば再描画
+                if (tiles.length > 0) {
+                    // 現在の画像で再生成
+                    const img = new Image();
+                    img.src = tiles[0].style.backgroundImage.slice(5, -2);
+                    img.onload = function () {
+                        createPuzzle(img.src);
+                    };
+                }
+            });
+
+            // loadingの表示
+            function showLoading() {
+                document.getElementById("loading").style.display = "flex";
+            }
+
+            function hideLoading() {
+                document.getElementById("loading").style.display = "none";
+            }
+        </script>
+    </body>
+</html>
