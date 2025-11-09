@@ -30,10 +30,10 @@
                 top: 50%;
                 left: 50%;
                 border: none;
-                width: calc(95% / 0.7); /* scaleの逆数で幅を調整 */
-                height: calc(95% / 0.7); /* 同じく高さを調整 */
+                width: calc(95% / 0.65); /* scaleの逆数で幅を調整 */
+                height: calc(95% / 0.65); /* 同じく高さを調整 */
                 border: none;
-                transform: translate(-50%, -50%) scale(0.7);
+                transform: translate(-50%, -50%) scale(0.65);
                 border-radius: 10px;
             }
             .heading {
@@ -100,7 +100,7 @@
 
                     // テキスト
                     const text = document.createElement("span");
-                    text.innerText = `start: ${start}, end: ${end}`;
+                    text.innerText = `${start} → ${end}`;
 
                     // 削除ボタン
                     const delBtn = document.createElement("button");
@@ -118,7 +118,7 @@
                     link.href = `https://kotsu.city.nagoya.jp/jp/pc/bus/access.html?start=${encodeURIComponent(
                         start
                     )}&end=${encodeURIComponent(end)}#btmMainArea`;
-                    link.innerText = "リンク先";
+                    link.innerText = "公式HPへ";
 
                     heading.appendChild(text);
                     heading.appendChild(delBtn);
@@ -144,7 +144,7 @@
                 const inputA = document.getElementById("inputA").value.trim();
                 const inputB = document.getElementById("inputB").value.trim();
                 if (!inputA || !inputB) {
-                    alert("AとBの両方に値を入力してください");
+                    alert("出発と到着の両方に値を入力してください");
                     return;
                 }
                 const paramsList = loadParams();
