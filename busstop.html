@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ja">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>市バス接近（一覧）</title>
+        <style>
+            h3 {
+                margin-bottom: 10px;
+            }
+            #paramForm {
+                background-color: bisque;
+            }
+            #formInput {
+                padding: 0 2rem;
+            }
+            input {
+                padding: 0.3rem;
+                margin-bottom: 0.2rem;
+            }
+            .iframe-wrap {
+                position: relative;
+                width: 100%;
+                padding-top: 56.25%; /* 16:9比率 */
+                margin-bottom: 2rem;
+                background-color: rgb(227, 254, 185);
+            }
+            .iframe-wrap iframe {
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                width: 95%;
+                height: 95%;
+                border: none;
+                transform: translate(-50%, -50%);
+                border-radius: 10px;
+            }
+            .heading {
+                font-weight: bold;
+                margin-top: 1rem;
+                padding: 1rem;
+                background-color: greenyellow;
+            }
+            .heading span {
+                margin-right: 1rem;
+            }
+            .heading button {
+                background-color: pink;
+                padding: 0.3rem 1rem;
+                border: none;
+                border-radius: 2px;
+                cursor: pointer;
+                margin-right: 1rem;
+            }
+
+            form label {
+                margin-right: 8px;
+            }
+            form input {
+                margin-right: 12px;
+            }
+        </style>
+    </head>
+    <body>
+        <form id="paramForm">
+            <h3>乗り降りバス停追加</h3>
+            <div id="formInput">
+                <label for="inputA">出発:</label>
+                <input type="text" id="inputA" name="inputA" required />
+                <br />
+                <label for="inputB">到着:</label>
+                <input type="text" id="inputB" name="inputB" required />
+                <button type="button" id="addBtn">追加</button>
+            </div>
+        </form>
+
+        <div id="iframeContainer"></div>
+
+        <script>
+            const STORAGE_KEY = "iframeParamsList";
+
+            function loadParams() {
+                const json = localStorage.getItem(STORAGE_KEY);
+                return json ? JSON.parse(json) : [];
+            }
+
+            function saveParams(arr) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
+            }
+
+            function renderIframes() {
+                const container = document.getElementById("iframeContainer");
+                container.innerHTML = "";
+                const paramsList = loadParams();
+                paramsList.forEach(({ start, end }, index) => {
+                    // headingエリア作成
+                    const heading = document.createElement("div");
+                    heading.className = "heading";
+
+                    // テキスト
+                    const text = document.createElement("span");
+                    text.innerText = `start: ${start}, end: ${end}`;
+
+                    // 削除ボタン
+                    const delBtn = document.createElement("button");
+                    delBtn.innerText = "削除";
+                    delBtn.addEventListener("click", () => {
+                        // 削除処理
+                        const currentList = loadParams();
+                        currentList.splice(index, 1);
+                        saveParams(currentList);
+                        renderIframes();
+                    });
+
+                    // リンク先
+                    const link = document.createElement("a");
+                    link.href = `https://kotsu.city.nagoya.jp/jp/pc/bus/access.html?start=${encodeURIComponent(
+                        start
+                    )}&end=${encodeURIComponent(end)}#btmMainArea`;
+                    link.innerText = "リンク先";
+
+                    heading.appendChild(text);
+                    heading.appendChild(delBtn);
+                    heading.appendChild(link);
+                    container.appendChild(heading);
+
+                    // iframeラップ作成
+                    const wrapper = document.createElement("div");
+                    wrapper.className = "iframe-wrap";
+
+                    const iframe = document.createElement("iframe");
+                    iframe.src = `https://kotsu.city.nagoya.jp/jp/pc/bus/access.html?start=${encodeURIComponent(
+                        start
+                    )}&end=${encodeURIComponent(end)}#categoryNav`;
+                    iframe.title = `iframe${index + 1}`;
+
+                    wrapper.appendChild(iframe);
+                    container.appendChild(wrapper);
+                });
+            }
+
+            document.getElementById("addBtn").addEventListener("click", () => {
+                const inputA = document.getElementById("inputA").value.trim();
+                const inputB = document.getElementById("inputB").value.trim();
+                if (!inputA || !inputB) {
+                    alert("AとBの両方に値を入力してください");
+                    return;
+                }
+                const paramsList = loadParams();
+                paramsList.push({ start: inputA, end: inputB });
+                saveParams(paramsList);
+                renderIframes();
+                document.getElementById("paramForm").reset();
+            });
+
+            window.addEventListener("DOMContentLoaded", () => {
+                renderIframes();
+            });
+        </script>
+    </body>
+</html>
