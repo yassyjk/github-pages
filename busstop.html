@@ -29,10 +29,11 @@
                 position: absolute;
                 top: 50%;
                 left: 50%;
-                width: 95%;
-                height: 95%;
                 border: none;
-                transform: translate(-50%, -50%);
+                width: calc(95% / 0.7); /* scaleの逆数で幅を調整 */
+                height: calc(95% / 0.7); /* 同じく高さを調整 */
+                border: none;
+                transform: translate(-50%, -50%) scale(0.7);
                 border-radius: 10px;
             }
             .heading {
