@@ -5,53 +5,84 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>市バス接近（一覧）</title>
         <style>
+            body {
+                background-color: #fff6f3;
+                font-family: "Noto Sans JP", sans-serif;
+
+                min-height: 80svh;
+            }
+            #toggleFormBtn {
+                background-color: rgb(255, 160, 149);
+                position: absolute;
+                top: 20px;
+                right: 15px;
+                font-size: 22px;
+                width: 40px;
+                height: 40px;
+                border-radius: 20px;
+                border: none;
+                cursor: pointer;
+            }
+            h2 {
+                background-color: white;
+                padding: 7px;
+            }
             h3 {
-                margin-bottom: 10px;
+                padding: 10px;
+                margin-bottom: 0px;
+                width: 100%;
             }
             #paramForm {
-                background-color: bisque;
+                background-color: #ffa095;
+                display: none;
             }
             #formInput {
                 padding: 0 2rem;
             }
+            #addBtn {
+                background-color: #feebd6;
+                padding: 0.2rem 0.6rem;
+                border-radius: 2px;
+            }
             input {
                 padding: 0.3rem;
                 margin-bottom: 0.2rem;
+                width: 50%;
             }
             .iframe-wrap {
                 position: relative;
                 width: 100%;
-                padding-top: 56.25%; /* 16:9比率 */
+                padding-top: 70%;
                 margin-bottom: 2rem;
-                background-color: rgb(227, 254, 185);
+                background-color: #feebd6;
+                border-radius: 5px;
             }
             .iframe-wrap iframe {
                 position: absolute;
                 top: 50%;
                 left: 50%;
                 border: none;
-                width: calc(95% / 0.65); /* scaleの逆数で幅を調整 */
-                height: calc(95% / 0.65); /* 同じく高さを調整 */
+                width: calc(97% / 0.6); /* scaleの逆数で幅を調整 */
+                height: calc(97% / 0.6); /* 同じく高さを調整 */
                 border: none;
-                transform: translate(-50%, -50%) scale(0.65);
+                transform: translate(-50%, -50%) scale(0.6);
                 border-radius: 10px;
             }
             .heading {
                 font-weight: bold;
                 margin-top: 1rem;
                 padding: 0.5rem 1rem;
-                background-color: greenyellow;
+                background-color: #feebd6;
             }
             .heading span {
                 margin-right: 1rem;
             }
             .heading button {
-                background-color: pink;
+                background-color: #ffa095;
                 padding: 0.3rem 1rem;
-                border: none;
                 border-radius: 2px;
                 cursor: pointer;
-                margin-right: 1rem;
+                margin-right: 3rem;
             }
 
             form label {
@@ -63,9 +94,11 @@
         </style>
     </head>
     <body>
-        <form id="paramForm">
-            <h3>乗り降りバス停追加</h3>
+        <button id="toggleFormBtn">＋</button>
+        <h2>　市バス接近（一覧）</h2>
+        <form id="paramForm" style="display: none">
             <div id="formInput">
+                <h3>乗り降りバス停追加</h3>
                 <label for="inputA">出発:</label>
                 <input type="text" id="inputA" name="inputA" required />
                 <br />
@@ -78,6 +111,17 @@
         <div id="iframeContainer"></div>
 
         <script>
+            const toggleBtn = document.getElementById("toggleFormBtn");
+            const form = document.getElementById("paramForm");
+
+            toggleBtn.addEventListener("click", () => {
+                if (form.style.display === "none") {
+                    form.style.display = "block";
+                } else {
+                    form.style.display = "none";
+                }
+            });
+
             const STORAGE_KEY = "iframeParamsList";
 
             function loadParams() {
