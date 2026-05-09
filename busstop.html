@@ -108,7 +108,7 @@
             </div>
         </form>
 
-        <!-- <div id="iframeContainer"></div> -->
+        <div id="iframeContainer"></div>
 
         <script>
             const toggleBtn = document.getElementById("toggleFormBtn");
@@ -136,51 +136,34 @@
             function renderIframes() {
                 const container = document.getElementById("iframeContainer");
                 container.innerHTML = "";
+            
                 const paramsList = loadParams();
                 paramsList.forEach(({ start, end }, index) => {
-                    // headingエリア作成
                     const heading = document.createElement("div");
                     heading.className = "heading";
-
-                    // テキスト
+            
                     const text = document.createElement("span");
                     text.innerText = `${start} → ${end}`;
-
-                    // 削除ボタン
+            
                     const delBtn = document.createElement("button");
+                    delBtn.type = "button";
                     delBtn.innerText = "削除";
                     delBtn.addEventListener("click", () => {
-                        // 削除処理
                         const currentList = loadParams();
                         currentList.splice(index, 1);
                         saveParams(currentList);
                         renderIframes();
                     });
-
-                    // リンク先
+            
                     const link = document.createElement("a");
-                    link.href = `https://kotsu.city.nagoya.jp/jp/pc/bus/access.html?start=${encodeURIComponent(
-                        start
-                    )}&end=${encodeURIComponent(end)}#btmMainArea`;
+                    link.href = `https://kotsu.city.nagoya.jp/jp/pc/bus/access.html?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}#btmMainArea`;
                     link.innerText = "公式HPへ";
-
+                    link.target = "_blank";
+            
                     heading.appendChild(text);
                     heading.appendChild(delBtn);
                     heading.appendChild(link);
                     container.appendChild(heading);
-
-                    // iframeラップ作成
-                    const wrapper = document.createElement("div");
-                    wrapper.className = "iframe-wrap";
-
-                    const iframe = document.createElement("iframe");
-                    iframe.src = `https://kotsu.city.nagoya.jp/jp/pc/bus/access.html?start=${encodeURIComponent(
-                        start
-                    )}&end=${encodeURIComponent(end)}#categoryNav`;
-                    iframe.title = `iframe${index + 1}`;
-
-                    wrapper.appendChild(iframe);
-                    container.appendChild(wrapper);
                 });
             }
 
