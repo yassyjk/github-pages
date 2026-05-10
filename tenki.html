@@ -2,8 +2,11 @@
 <html lang="ja">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-        <title>天気予報</title>
+        <meta
+            name="viewport"
+            content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+        />
+        <title>天気 & News</title>
         <style>
             :root {
                 --bg-gray: #f2f2f7;
@@ -17,7 +20,7 @@
                 font-family: -apple-system, "Helvetica Neue", sans-serif;
                 background-color: var(--bg-gray);
                 margin: 0;
-                padding: 15px 12px;
+                padding: 10px 12px;
                 color: var(--text-main);
                 line-height: 1.3;
             }
@@ -29,116 +32,164 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 12px;
-                padding: 0 5px;
+                margin-bottom: 8px;
             }
             h1 {
-                font-size: 1.5rem;
+                font-size: 1.2rem;
                 margin: 0;
                 font-weight: 800;
-                letter-spacing: -0.5px;
             }
+            h2 {
+                font-size: 1rem;
+                margin: 12px 0 6px;
+                font-weight: 700;
+            }
+
             .settings-btn {
                 background: none;
                 border: none;
-                font-size: 1.4rem;
+                font-size: 1.2rem;
                 cursor: pointer;
-                padding: 5px;
             }
             .controls {
                 display: flex;
-                gap: 10px;
-                margin-bottom: 15px;
+                gap: 8px;
+                margin-bottom: 10px;
             }
             select {
                 flex: 1;
-                padding: 12px 15px;
-                border-radius: 12px;
+                padding: 8px;
+                border-radius: 10px;
                 border: none;
-                font-size: 16px;
-                font-weight: 700;
+                font-size: 14px;
+                font-weight: 600;
                 background: var(--card-white);
-                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-                appearance: none;
-                color: var(--text-main);
+                box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             }
             .refresh-btn {
-                padding: 0 18px;
-                border-radius: 12px;
+                padding: 0 15px;
+                border-radius: 10px;
                 background: var(--accent-blue);
                 color: white;
                 border: none;
                 font-weight: bold;
-                font-size: 14px;
+                font-size: 12px;
             }
+
             /* 天気カード */
             .day-card {
                 background: var(--card-white);
-                border-radius: 20px;
-                padding: 15px 10px;
-                margin-bottom: 12px;
-                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+                border-radius: 16px;
+                padding: 10px;
+                margin-bottom: 8px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
             }
             .day-header {
                 display: flex;
                 justify-content: space-between;
-                align-items: baseline;
-                margin-bottom: 10px;
-                padding: 0 6px;
+                margin-bottom: 6px;
             }
             .day-label {
-                font-size: 1.2rem;
+                font-size: 0.9rem;
                 font-weight: 800;
                 color: var(--accent-blue);
             }
             .day-date {
-                font-size: 0.9rem;
+                font-size: 0.8rem;
                 color: var(--text-sub);
-                font-weight: 600;
             }
+
             .time-row {
                 display: flex;
                 justify-content: space-between;
-                gap: 6px;
+                gap: 5px;
             }
             .time-slot {
                 flex: 1;
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                padding: 12px 2px;
+                padding: 6px 0;
                 background: #f8f9fb;
-                border-radius: 16px;
-                min-height: 135px; /* 中間の高さ */
+                border-radius: 12px;
             }
             .slot-time {
-                font-size: 0.75rem;
+                font-size: 0.65rem;
                 color: var(--text-sub);
                 font-weight: 700;
-                margin-bottom: 5px;
             }
             .slot-icon {
-                font-size: 2rem;
-                margin-bottom: 2px;
+                font-size: 1.3rem;
+                margin: 2px 0;
             }
             .slot-weather {
-                font-size: 0.7rem;
+                font-size: 0.6rem;
                 font-weight: bold;
-                margin-bottom: 8px;
                 color: #444;
+                margin-bottom: 3px;
+            }
+            .slot-data-row {
+                display: flex;
+                align-items: baseline;
+                gap: 4px;
             }
             .slot-temp {
-                font-size: 1.4rem;
+                font-size: 1.1rem;
                 font-weight: 900;
                 color: var(--temp-red);
-                margin-bottom: 2px;
             }
             .slot-prec {
-                font-size: 0.7rem;
+                font-size: 0.65rem;
                 color: var(--accent-blue);
-                font-weight: 600;
+                font-weight: 700;
             }
-            /* モーダル */
+
+            /* ニュースセクション（改善版） */
+            #news-container {
+                background: var(--card-white);
+                border-radius: 16px;
+                padding: 5px 12px;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            }
+            .news-item {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 4px 0;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            .news-item:last-child {
+                border-bottom: none;
+            }
+            .news-title {
+                flex: 1;
+                font-size: 0.9rem;
+                text-decoration: none;
+                color: var(--text-main);
+                margin-right: 10px;
+                font-weight: 500;
+                display: -webkit-box;
+                -webkit-line-clamp: 2;
+                -webkit-box-orient: vertical;
+                overflow: hidden;
+            }
+            /* 詳細ボタンを大きく */
+            .news-source {
+                display: inline-block;
+                background-color: #f2f2f7;
+                color: var(--accent-blue);
+                text-decoration: none;
+                font-size: 0.75rem;
+                font-weight: bold;
+                padding: 8px 14px;
+                border-radius: 8px;
+                white-space: nowrap;
+                transition: background 0.2s;
+            }
+            .news-source:active {
+                background-color: #e5e5ea;
+            }
+
             #settingsModal {
                 display: none;
                 position: fixed;
@@ -147,34 +198,31 @@
                 width: 100%;
                 height: 100%;
                 background: rgba(0, 0, 0, 0.5);
-                backdrop-filter: blur(2px);
                 z-index: 1000;
                 justify-content: center;
                 align-items: center;
             }
             .modal-content {
                 background: white;
-                padding: 25px;
-                border-radius: 22px;
-                width: 80%;
-                max-width: 300px;
+                padding: 20px;
+                border-radius: 20px;
+                width: 250px;
                 text-align: center;
             }
             .modal-content input {
                 width: 100%;
-                padding: 12px;
-                margin: 15px 0;
-                border-radius: 10px;
+                padding: 10px;
+                margin: 10px 0;
+                border-radius: 8px;
                 border: 1px solid #ddd;
-                font-size: 16px;
                 box-sizing: border-box;
             }
             .save-btn {
                 background: var(--accent-blue);
                 color: white;
                 border: none;
-                padding: 12px;
-                border-radius: 10px;
+                padding: 10px;
+                border-radius: 8px;
                 font-weight: bold;
                 width: 100%;
             }
@@ -183,21 +231,23 @@
     <body>
         <div class="container">
             <header>
-                <h1>今日・明日の天気</h1>
+                <h1>天気 & News</h1>
                 <button class="settings-btn" onclick="toggleModal()">⚙️</button>
             </header>
 
             <div class="controls">
                 <select id="areaSelect" onchange="loadWeather()">
-                    <option value="hashima" selected>📍 岐阜県 羽島市</option>
-                    <option value="nagoya">📍 愛知県 名古屋市</option>
+                    <option value="hashima" selected>📍 岐阜 羽島</option>
+                    <option value="nagoya">📍 愛知 名古屋</option>
                 </select>
-                <button class="refresh-btn" onclick="loadWeather()">
-                    更新
-                </button>
             </div>
 
             <div id="weather-info"></div>
+
+            <h2>Latest News</h2>
+            <div id="news-container">
+                <div id="newsList"></div>
+            </div>
         </div>
 
         <div id="settingsModal">
@@ -206,16 +256,17 @@
                 <input
                     type="text"
                     id="nicknameInput"
-                    placeholder="ニックネームを入力"
+                    placeholder="ニックネーム"
                 />
-                <button class="save-btn" onclick="saveSettings()">
-                    設定を保存
-                </button>
+                <button class="save-btn" onclick="saveSettings()">保存</button>
             </div>
         </div>
 
         <script>
-            const GAS_URL = "https://script.google.com/macros/s/AKfycbymjTtYbFxdprnS5dmPzcwWTrJH9FnEdEtZuShzpXUsf_7HCyTC9f1uxXqhTsjdRLJn/exec"; // GASのURLを入力してください
+            const WEATHER_GAS_URL =
+                "https://script.google.com/macros/s/AKfycbymjTtYbFxdprnS5dmPzcwWTrJH9FnEdEtZuShzpXUsf_7HCyTC9f1uxXqhTsjdRLJn/exec";
+            const NEWS_GAS_URL =
+                "https://script.google.com/macros/s/AKfycbxKTQsnyCfWuyRPE285ofvG_fVxpcHijsvRM1-eH7rfkbUbGA31nZc6c8SVZ_xomJ_RAw/exec";
 
             const locations = {
                 hashima: { lat: 35.31, lng: 136.7 },
@@ -235,18 +286,22 @@
                 61: "🌦 小雨",
                 63: "🌧 雨",
                 65: "🌊 大雨",
-                80: "🌦 にわか雨",
+                80: "🌦 にわか",
                 95: "⚡ 雷雨",
             };
 
-            window.onload = function () {
+            window.onload = () => {
                 const savedName = localStorage.getItem("userNickname");
-                if (savedName) {
+                if (savedName)
                     document.getElementById("nicknameInput").value = savedName;
-                }
-                loadWeather();
-                pushLineMessage();
+                refreshAll();
             };
+
+            function refreshAll() {
+                loadWeather();
+                loadNews();
+                pushLineMessage();
+            }
 
             function toggleModal() {
                 const modal = document.getElementById("settingsModal");
@@ -255,54 +310,52 @@
             }
 
             function saveSettings() {
-                const name = document.getElementById("nicknameInput").value;
-                localStorage.setItem("userNickname", name);
+                localStorage.setItem(
+                    "userNickname",
+                    document.getElementById("nicknameInput").value,
+                );
                 toggleModal();
             }
 
             async function pushLineMessage() {
-                if (!GAS_URL) return;
+                if (!WEATHER_GAS_URL) return;
                 const nickname =
-                    localStorage.getItem("userNickname") || "未設定のユーザー";
-                const message = `${nickname}さんが天気アプリを開きました。`;
+                    localStorage.getItem("userNickname") || "未設定";
                 try {
-                    await fetch(
-                        `${GAS_URL}?message=${encodeURIComponent(message)}`,
-                        {
-                            method: "POST",
-                            mode: "no-cors",
-                            cache: "no-cache",
-                        },
+                    fetch(
+                        `${WEATHER_GAS_URL}?message=${encodeURIComponent(nickname + "さんが開きました")}`,
+                        { method: "POST", mode: "no-cors" },
                     );
-                } catch (e) {
-                    console.error(e);
-                }
+                } catch (e) {}
             }
 
             async function loadWeather() {
                 const sel = document.getElementById("areaSelect").value;
                 const loc = locations[sel];
-                const infoDiv = document.getElementById("weather-info");
-                infoDiv.innerHTML =
-                    "<p style='text-align:center; padding:20px; font-size:14px;'>取得中...</p>";
-
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&hourly=temperature_2m,precipitation,weather_code&timezone=Asia/Tokyo`;
-
                 try {
                     const response = await fetch(url);
                     const data = await response.json();
-                    const h = data.hourly;
-                    const today = new Date().toLocaleDateString("sv-SE");
-                    const tomorrow = new Date(
-                        Date.now() + 86400000,
-                    ).toLocaleDateString("sv-SE");
-
+                    const infoDiv = document.getElementById("weather-info");
                     infoDiv.innerHTML = "";
-                    infoDiv.appendChild(createCard("今日", today, h));
-                    infoDiv.appendChild(createCard("明日", tomorrow, h));
-                } catch (error) {
-                    infoDiv.innerHTML =
-                        "<p style='text-align:center; color:red; padding:20px;'>エラー</p>";
+                    infoDiv.appendChild(
+                        createCard(
+                            "今日",
+                            new Date().toLocaleDateString("sv-SE"),
+                            data.hourly,
+                        ),
+                    );
+                    infoDiv.appendChild(
+                        createCard(
+                            "明日",
+                            new Date(Date.now() + 86400000).toLocaleDateString(
+                                "sv-SE",
+                            ),
+                            data.hourly,
+                        ),
+                    );
+                } catch (e) {
+                    console.error(e);
                 }
             }
 
@@ -316,28 +369,49 @@
                 const row = document.createElement("div");
                 row.className = "time-row";
                 const targetHours = [8, 13, 18];
-                let htmlContent = "";
-
                 data.time.forEach((t, i) => {
-                    const d = new Date(t);
-                    const hour = d.getHours();
-                    if (t.startsWith(dateStr) && targetHours.includes(hour)) {
-                        const weatherData =
+                    if (
+                        t.startsWith(dateStr) &&
+                        targetHours.includes(new Date(t).getHours())
+                    ) {
+                        const weather =
                             weatherCodeMap[data.weather_code[i]] || "☁️ 曇り";
-                        const [icon, text] = weatherData.split(" ");
-                        htmlContent += `
-                            <div class="time-slot">
-                                <div class="slot-time">${hour}:00</div>
-                                <div class="slot-icon">${icon}</div>
-                                <div class="slot-weather">${text}</div>
+                        const [icon, text] = weather.split(" ");
+                        row.innerHTML += `<div class="time-slot">
+                            <div class="slot-time">${new Date(t).getHours()}:00</div>
+                            <div class="slot-icon">${icon}</div>
+                            <div class="slot-weather">${text}</div>
+                            <div class="slot-data-row">
                                 <div class="slot-temp">${Math.round(data.temperature_2m[i])}°</div>
-                                <div class="slot-prec">💧${data.precipitation[i]}<small>mm</small></div>
-                            </div>`;
+                                <div class="slot-prec">💧${data.precipitation[i]}</div>
+                            </div>
+                        </div>`;
                     }
                 });
-                row.innerHTML = htmlContent;
                 card.appendChild(row);
                 return card;
+            }
+
+            async function loadNews() {
+                const list = document.getElementById("newsList");
+                try {
+                    const res = await fetch(NEWS_GAS_URL);
+                    const data = await res.json();
+                    list.innerHTML = "";
+                    // 確実に5件のみを表示
+                    (data.items || []).slice(0, 5).forEach((item) => {
+                        const div = document.createElement("div");
+                        div.className = "news-item";
+                        div.innerHTML = `
+                            <a href="${item.link}" target="_blank" class="news-title">${item.title}</a>
+                            <a href="${item.link}" target="_blank" class="news-source">詳細</a>
+                        `;
+                        list.appendChild(div);
+                    });
+                } catch (err) {
+                    list.innerHTML =
+                        '<p style="text-align:center; padding:10px; font-size:12px;">読み込み失敗</p>';
+                }
             }
         </script>
     </body>
