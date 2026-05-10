@@ -57,7 +57,6 @@
                 margin-bottom: 10px;
             }
 
-            /* 入力要素の共通スタイル */
             select,
             input {
                 width: 100%;
@@ -70,11 +69,15 @@
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
                 box-sizing: border-box;
             }
-            select {
-                cursor: pointer;
+
+            /* 取得中メッセージ用 */
+            .loading-text {
+                text-align: center;
+                font-size: 0.8rem;
+                color: var(--text-sub);
+                padding: 20px;
             }
 
-            /* 天気カード */
             .day-card {
                 background: var(--card-white);
                 border-radius: 16px;
@@ -141,7 +144,6 @@
                 font-weight: 700;
             }
 
-            /* ニュース */
             #news-container {
                 background: var(--card-white);
                 border-radius: 16px;
@@ -152,7 +154,7 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 4px 0;
+                padding: 8px 0;
                 border-bottom: 1px solid #f0f0f0;
             }
             .news-item:last-child {
@@ -182,7 +184,6 @@
                 white-space: nowrap;
             }
 
-            /* モーダル */
             #settingsModal {
                 display: none;
                 position: fixed;
@@ -200,12 +201,6 @@
                 padding: 20px;
                 border-radius: 24px;
                 width: 280px;
-                text-align: left;
-            }
-            .modal-content h3 {
-                margin-top: 0;
-                font-size: 1.1rem;
-                text-align: center;
             }
             .modal-label {
                 font-size: 0.8rem;
@@ -213,11 +208,6 @@
                 color: var(--text-sub);
                 margin: 10px 0 5px;
                 display: block;
-            }
-            .modal-content input,
-            .modal-content select {
-                border: 1px solid #ddd;
-                margin-bottom: 15px;
             }
             .save-btn {
                 background: var(--accent-blue);
@@ -227,7 +217,7 @@
                 border-radius: 12px;
                 font-weight: bold;
                 width: 100%;
-                font-size: 1rem;
+                margin-top: 10px;
                 cursor: pointer;
             }
         </style>
@@ -240,7 +230,6 @@
             </header>
 
             <div class="controls">
-                <!-- 現在表示中の地域選択 -->
                 <select id="areaSelect" onchange="loadWeather()">
                     <option value="hashima">📍 岐阜 羽島市</option>
                     <option value="nagoya">📍 愛知 名古屋市</option>
@@ -258,17 +247,14 @@
         <!-- 設定モーダル -->
         <div id="settingsModal">
             <div class="modal-content">
-                <h3>設定</h3>
-
+                <h3 style="text-align: center; margin-top: 0">設定</h3>
                 <label class="modal-label">ニックネーム</label>
                 <input type="text" id="nicknameInput" placeholder="未設定" />
-
                 <label class="modal-label">デフォルト地域</label>
                 <select id="defaultAreaSelect">
                     <option value="hashima">岐阜 羽島市</option>
                     <option value="nagoya">愛知 名古屋市</option>
                 </select>
-
                 <button class="save-btn" onclick="saveSettings()">
                     設定を保存
                 </button>
@@ -305,12 +291,10 @@
             };
 
             window.onload = () => {
-                // 保存されたニックネームの読み込み
                 const savedName = localStorage.getItem("userNickname");
                 if (savedName)
                     document.getElementById("nicknameInput").value = savedName;
 
-                // 保存されたデフォルト地域の読み込み
                 const savedArea =
                     localStorage.getItem("defaultArea") || "hashima";
                 document.getElementById("defaultAreaSelect").value = savedArea;
@@ -332,39 +316,74 @@
             }
 
             function saveSettings() {
-                const name = document.getElementById("nicknameInput").value;
-                const area = document.getElementById("defaultAreaSelect").value;
-
-                localStorage.setItem("userNickname", name);
-                localStorage.setItem("defaultArea", area);
-
-                // 現在の表示地域もデフォルトに合わせる
-                document.getElementById("areaSelect").value = area;
-
+                localStorage.setItem(
+                    "userNickname",
+                    document.getElementById("nicknameInput").value,
+                );
+                localStorage.setItem(
+                    "defaultArea",
+                    document.getElementById("defaultAreaSelect").value,
+                );
+                document.getElementById("areaSelect").value =
+                    document.getElementById("defaultAreaSelect").value;
                 toggleModal();
-                loadWeather(); // 地域が変わった可能性があるので再読み込み
+                loadWeather();
             }
 
+            // LINE通知の回数制限処理
             async function pushLineMessage() {
                 if (!WEATHER_GAS_URL) return;
+
+                // 日本時間の今日の日付 (YYYY-MM-DD) を取得
+                const today = new Intl.DateTimeFormat("ja-JP", {
+                    timeZone: "Asia/Tokyo",
+                    year: "numeric",
+                    month: "2-digit",
+                    day: "2-digit",
+                })
+                    .format(new Date())
+                    .replaceAll("/", "-");
+
+                const lastDate = localStorage.getItem("lastNotifyDate");
+                let count = parseInt(
+                    localStorage.getItem("notifyCount") || "0",
+                );
+
+                // 日付が更新されていたらリセット
+                if (lastDate !== today) {
+                    count = 0;
+                    localStorage.setItem("lastNotifyDate", today);
+                }
+
+                // 1日3回までの制限
+                if (count >= 3) {
+                    console.log("通知制限: 本日の上限(3回)に達しています");
+                    return;
+                }
+
                 const nickname =
                     localStorage.getItem("userNickname") || "未設定";
                 try {
-                    fetch(
-                        `${WEATHER_GAS_URL}?message=${encodeURIComponent(nickname + "さんが開きました")}`,
+                    const res = await fetch(
+                        `${WEATHER_GAS_URL}?message=${encodeURIComponent(nickname + "が開いたよー")}`,
                         { method: "POST", mode: "no-cors" },
                     );
+                    localStorage.setItem("notifyCount", count + 1);
                 } catch (e) {}
             }
 
             async function loadWeather() {
+                const infoDiv = document.getElementById("weather-info");
+                infoDiv.innerHTML =
+                    '<div class="loading-text">天気取得中…</div>';
+
                 const sel = document.getElementById("areaSelect").value;
                 const loc = locations[sel];
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&hourly=temperature_2m,precipitation,weather_code&timezone=Asia/Tokyo`;
+
                 try {
                     const response = await fetch(url);
                     const data = await response.json();
-                    const infoDiv = document.getElementById("weather-info");
                     infoDiv.innerHTML = "";
                     infoDiv.appendChild(
                         createCard(
@@ -383,7 +402,8 @@
                         ),
                     );
                 } catch (e) {
-                    console.error(e);
+                    infoDiv.innerHTML =
+                        '<div class="loading-text">天気の取得に失敗しました</div>';
                 }
             }
 
@@ -422,6 +442,9 @@
 
             async function loadNews() {
                 const list = document.getElementById("newsList");
+                list.innerHTML =
+                    '<div class="loading-text">ニュース取得中…</div>';
+
                 if (!NEWS_GAS_URL) {
                     list.innerHTML = "URLが未設定です";
                     return;
@@ -438,7 +461,7 @@
                     });
                 } catch (err) {
                     list.innerHTML =
-                        '<p style="text-align:center; padding:10px; font-size:12px;">読み込み失敗</p>';
+                        '<div class="loading-text">ニュースの取得に失敗しました</div>';
                 }
             }
         </script>
