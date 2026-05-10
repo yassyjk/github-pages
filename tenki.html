@@ -56,24 +56,22 @@
                 gap: 8px;
                 margin-bottom: 10px;
             }
-            select {
-                flex: 1;
-                padding: 8px;
+
+            /* 入力要素の共通スタイル */
+            select,
+            input {
+                width: 100%;
+                padding: 10px;
                 border-radius: 10px;
                 border: none;
                 font-size: 14px;
                 font-weight: 600;
                 background: var(--card-white);
                 box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+                box-sizing: border-box;
             }
-            .refresh-btn {
-                padding: 0 15px;
-                border-radius: 10px;
-                background: var(--accent-blue);
-                color: white;
-                border: none;
-                font-weight: bold;
-                font-size: 12px;
+            select {
+                cursor: pointer;
             }
 
             /* 天気カード */
@@ -98,7 +96,6 @@
                 font-size: 0.8rem;
                 color: var(--text-sub);
             }
-
             .time-row {
                 display: flex;
                 justify-content: space-between;
@@ -144,7 +141,7 @@
                 font-weight: 700;
             }
 
-            /* ニュースセクション（改善版） */
+            /* ニュース */
             #news-container {
                 background: var(--card-white);
                 border-radius: 16px;
@@ -155,7 +152,7 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                padding: 4px 0;
+                padding: 8px 0;
                 border-bottom: 1px solid #f0f0f0;
             }
             .news-item:last-child {
@@ -173,7 +170,6 @@
                 -webkit-box-orient: vertical;
                 overflow: hidden;
             }
-            /* 詳細ボタンを大きく */
             .news-source {
                 display: inline-block;
                 background-color: #f2f2f7;
@@ -184,12 +180,9 @@
                 padding: 8px 14px;
                 border-radius: 8px;
                 white-space: nowrap;
-                transition: background 0.2s;
-            }
-            .news-source:active {
-                background-color: #e5e5ea;
             }
 
+            /* モーダル */
             #settingsModal {
                 display: none;
                 position: fixed;
@@ -205,26 +198,37 @@
             .modal-content {
                 background: white;
                 padding: 20px;
-                border-radius: 20px;
-                width: 250px;
+                border-radius: 24px;
+                width: 280px;
+                text-align: left;
+            }
+            .modal-content h3 {
+                margin-top: 0;
+                font-size: 1.1rem;
                 text-align: center;
             }
-            .modal-content input {
-                width: 100%;
-                padding: 10px;
-                margin: 10px 0;
-                border-radius: 8px;
+            .modal-label {
+                font-size: 0.8rem;
+                font-weight: 700;
+                color: var(--text-sub);
+                margin: 10px 0 5px;
+                display: block;
+            }
+            .modal-content input,
+            .modal-content select {
                 border: 1px solid #ddd;
-                box-sizing: border-box;
+                margin-bottom: 15px;
             }
             .save-btn {
                 background: var(--accent-blue);
                 color: white;
                 border: none;
-                padding: 10px;
-                border-radius: 8px;
+                padding: 12px;
+                border-radius: 12px;
                 font-weight: bold;
                 width: 100%;
+                font-size: 1rem;
+                cursor: pointer;
             }
         </style>
     </head>
@@ -236,9 +240,10 @@
             </header>
 
             <div class="controls">
+                <!-- 現在表示中の地域選択 -->
                 <select id="areaSelect" onchange="loadWeather()">
-                    <option value="hashima" selected>📍 岐阜 羽島</option>
-                    <option value="nagoya">📍 愛知 名古屋</option>
+                    <option value="hashima">📍 岐阜 羽島市</option>
+                    <option value="nagoya">📍 愛知 名古屋市</option>
                 </select>
             </div>
 
@@ -250,21 +255,30 @@
             </div>
         </div>
 
+        <!-- 設定モーダル -->
         <div id="settingsModal">
             <div class="modal-content">
-                <h3>名前の設定</h3>
-                <input
-                    type="text"
-                    id="nicknameInput"
-                    placeholder="ニックネーム"
-                />
-                <button class="save-btn" onclick="saveSettings()">保存</button>
+                <h3>設定</h3>
+
+                <label class="modal-label">ニックネーム</label>
+                <input type="text" id="nicknameInput" placeholder="未設定" />
+
+                <label class="modal-label">デフォルト地域</label>
+                <select id="defaultAreaSelect">
+                    <option value="hashima">岐阜 羽島市</option>
+                    <option value="nagoya">愛知 名古屋市</option>
+                </select>
+
+                <button class="save-btn" onclick="saveSettings()">
+                    設定を保存
+                </button>
             </div>
         </div>
 
         <script>
             const WEATHER_GAS_URL =
                 "https://script.google.com/macros/s/AKfycbymjTtYbFxdprnS5dmPzcwWTrJH9FnEdEtZuShzpXUsf_7HCyTC9f1uxXqhTsjdRLJn/exec";
+
             const NEWS_GAS_URL =
                 "https://script.google.com/macros/s/AKfycbxKTQsnyCfWuyRPE285ofvG_fVxpcHijsvRM1-eH7rfkbUbGA31nZc6c8SVZ_xomJ_RAw/exec";
 
@@ -291,9 +305,17 @@
             };
 
             window.onload = () => {
+                // 保存されたニックネームの読み込み
                 const savedName = localStorage.getItem("userNickname");
                 if (savedName)
                     document.getElementById("nicknameInput").value = savedName;
+
+                // 保存されたデフォルト地域の読み込み
+                const savedArea =
+                    localStorage.getItem("defaultArea") || "hashima";
+                document.getElementById("defaultAreaSelect").value = savedArea;
+                document.getElementById("areaSelect").value = savedArea;
+
                 refreshAll();
             };
 
@@ -310,11 +332,17 @@
             }
 
             function saveSettings() {
-                localStorage.setItem(
-                    "userNickname",
-                    document.getElementById("nicknameInput").value,
-                );
+                const name = document.getElementById("nicknameInput").value;
+                const area = document.getElementById("defaultAreaSelect").value;
+
+                localStorage.setItem("userNickname", name);
+                localStorage.setItem("defaultArea", area);
+
+                // 現在の表示地域もデフォルトに合わせる
+                document.getElementById("areaSelect").value = area;
+
                 toggleModal();
+                loadWeather(); // 地域が変わった可能性があるので再読み込み
             }
 
             async function pushLineMessage() {
@@ -394,18 +422,18 @@
 
             async function loadNews() {
                 const list = document.getElementById("newsList");
+                if (!NEWS_GAS_URL) {
+                    list.innerHTML = "URLが未設定です";
+                    return;
+                }
                 try {
                     const res = await fetch(NEWS_GAS_URL);
                     const data = await res.json();
                     list.innerHTML = "";
-                    // 確実に5件のみを表示
                     (data.items || []).slice(0, 5).forEach((item) => {
                         const div = document.createElement("div");
                         div.className = "news-item";
-                        div.innerHTML = `
-                            <a href="${item.link}" target="_blank" class="news-title">${item.title}</a>
-                            <a href="${item.link}" target="_blank" class="news-source">詳細</a>
-                        `;
+                        div.innerHTML = `<a href="${item.link}" target="_blank" class="news-title">${item.title}</a><a href="${item.link}" target="_blank" class="news-source">詳細</a>`;
                         list.appendChild(div);
                     });
                 } catch (err) {
