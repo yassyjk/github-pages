@@ -17,8 +17,9 @@
                 font-family: -apple-system, "Helvetica Neue", sans-serif;
                 background-color: var(--bg-gray);
                 margin: 0;
-                padding: 20px 12px;
+                padding: 15px 12px;
                 color: var(--text-main);
+                line-height: 1.3;
             }
             .container {
                 max-width: 430px;
@@ -28,76 +29,73 @@
                 display: flex;
                 justify-content: space-between;
                 align-items: center;
-                margin-bottom: 15px;
+                margin-bottom: 12px;
                 padding: 0 5px;
             }
             h1 {
                 font-size: 1.5rem;
                 margin: 0;
                 font-weight: 800;
+                letter-spacing: -0.5px;
             }
-
-            /* 設定ボタン */
             .settings-btn {
                 background: none;
                 border: none;
-                font-size: 1.5rem;
+                font-size: 1.4rem;
                 cursor: pointer;
                 padding: 5px;
             }
-
             .controls {
                 display: flex;
                 gap: 10px;
-                margin-bottom: 20px;
+                margin-bottom: 15px;
             }
             select {
                 flex: 1;
-                padding: 12px;
-                border-radius: 14px;
+                padding: 12px 15px;
+                border-radius: 12px;
                 border: none;
                 font-size: 16px;
-                font-weight: 600;
+                font-weight: 700;
                 background: var(--card-white);
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
                 appearance: none;
+                color: var(--text-main);
             }
             .refresh-btn {
-                padding: 12px 18px;
-                border-radius: 14px;
+                padding: 0 18px;
+                border-radius: 12px;
                 background: var(--accent-blue);
                 color: white;
                 border: none;
                 font-weight: bold;
                 font-size: 14px;
             }
-
             /* 天気カード */
             .day-card {
                 background: var(--card-white);
-                border-radius: 24px;
-                padding: 20px 12px;
-                margin-bottom: 20px;
-                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+                border-radius: 20px;
+                padding: 15px 10px;
+                margin-bottom: 12px;
+                box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
             }
             .day-header {
                 display: flex;
                 justify-content: space-between;
                 align-items: baseline;
-                margin-bottom: 15px;
-                padding: 0 10px;
+                margin-bottom: 10px;
+                padding: 0 6px;
             }
             .day-label {
-                font-size: 1.4rem;
+                font-size: 1.2rem;
                 font-weight: 800;
                 color: var(--accent-blue);
             }
             .day-date {
-                font-size: 0.95rem;
+                font-size: 0.9rem;
                 color: var(--text-sub);
                 font-weight: 600;
             }
-
             .time-row {
                 display: flex;
                 justify-content: space-between;
@@ -108,41 +106,39 @@
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                padding: 15px 2px;
+                padding: 12px 2px;
                 background: #f8f9fb;
-                border-radius: 18px;
-                min-height: 160px;
+                border-radius: 16px;
+                min-height: 135px; /* 中間の高さ */
             }
             .slot-time {
-                font-size: 0.8rem;
+                font-size: 0.75rem;
                 color: var(--text-sub);
                 font-weight: 700;
-                margin-bottom: 8px;
-            }
-            .slot-icon {
-                font-size: 2.2rem;
                 margin-bottom: 5px;
             }
+            .slot-icon {
+                font-size: 2rem;
+                margin-bottom: 2px;
+            }
             .slot-weather {
-                font-size: 0.75rem;
+                font-size: 0.7rem;
                 font-weight: bold;
-                margin-bottom: 12px;
-                text-align: center;
+                margin-bottom: 8px;
                 color: #444;
             }
             .slot-temp {
-                font-size: 1.5rem;
+                font-size: 1.4rem;
                 font-weight: 900;
                 color: var(--temp-red);
-                margin-bottom: 4px;
+                margin-bottom: 2px;
             }
             .slot-prec {
-                font-size: 0.75rem;
+                font-size: 0.7rem;
                 color: var(--accent-blue);
                 font-weight: 600;
             }
-
-            /* モーダル設定画面 */
+            /* モーダル */
             #settingsModal {
                 display: none;
                 position: fixed;
@@ -151,6 +147,7 @@
                 width: 100%;
                 height: 100%;
                 background: rgba(0, 0, 0, 0.5);
+                backdrop-filter: blur(2px);
                 z-index: 1000;
                 justify-content: center;
                 align-items: center;
@@ -158,40 +155,42 @@
             .modal-content {
                 background: white;
                 padding: 25px;
-                border-radius: 20px;
+                border-radius: 22px;
                 width: 80%;
                 max-width: 300px;
                 text-align: center;
             }
             .modal-content input {
                 width: 100%;
-                padding: 10px;
+                padding: 12px;
                 margin: 15px 0;
                 border-radius: 10px;
                 border: 1px solid #ddd;
+                font-size: 16px;
                 box-sizing: border-box;
             }
             .save-btn {
                 background: var(--accent-blue);
                 color: white;
                 border: none;
-                padding: 10px 20px;
+                padding: 12px;
                 border-radius: 10px;
                 font-weight: bold;
+                width: 100%;
             }
         </style>
     </head>
     <body>
         <div class="container">
             <header>
-                <h1>今日・明日の天気予報</h1>
+                <h1>今日・明日の天気</h1>
                 <button class="settings-btn" onclick="toggleModal()">⚙️</button>
             </header>
 
             <div class="controls">
                 <select id="areaSelect" onchange="loadWeather()">
-                    <option value="hashima" selected>岐阜県 羽島市</option>
-                    <option value="nagoya">愛知県 名古屋市</option>
+                    <option value="hashima" selected>📍 岐阜県 羽島市</option>
+                    <option value="nagoya">📍 愛知県 名古屋市</option>
                 </select>
                 <button class="refresh-btn" onclick="loadWeather()">
                     更新
@@ -201,27 +200,22 @@
             <div id="weather-info"></div>
         </div>
 
-        <!-- 設定モーダル -->
         <div id="settingsModal">
             <div class="modal-content">
-                <h3>設定</h3>
-                <p style="font-size: 14px; color: var(--text-sub)">
-                    ニックネームを入力してください
-                </p>
+                <h3>名前の設定</h3>
                 <input
                     type="text"
                     id="nicknameInput"
-                    placeholder="例：たろう"
+                    placeholder="ニックネームを入力"
                 />
                 <button class="save-btn" onclick="saveSettings()">
-                    保存して閉じる
+                    設定を保存
                 </button>
             </div>
         </div>
 
         <script>
-            const GAS_URL =
-                "https://script.google.com/macros/s/AKfycbymjTtYbFxdprnS5dmPzcwWTrJH9FnEdEtZuShzpXUsf_7HCyTC9f1uxXqhTsjdRLJn/exec";
+            const GAS_URL = "https://script.google.com/macros/s/AKfycbymjTtYbFxdprnS5dmPzcwWTrJH9FnEdEtZuShzpXUsf_7HCyTC9f1uxXqhTsjdRLJn/exec"; // GASのURLを入力してください
 
             const locations = {
                 hashima: { lat: 35.31, lng: 136.7 },
@@ -231,7 +225,7 @@
             const weatherCodeMap = {
                 0: "☀️ 晴天",
                 1: "🌤 晴れ",
-                2: "⛅ 一部曇り",
+                2: "⛅ 曇り",
                 3: "☁️ 曇り",
                 45: "🌫 霧",
                 48: "🌫 濃霧",
@@ -246,24 +240,20 @@
             };
 
             window.onload = function () {
-                // 保存されているニックネームをセット
                 const savedName = localStorage.getItem("userNickname");
                 if (savedName) {
                     document.getElementById("nicknameInput").value = savedName;
                 }
-
                 loadWeather();
                 pushLineMessage();
             };
 
-            // モーダルの開閉
             function toggleModal() {
                 const modal = document.getElementById("settingsModal");
                 modal.style.display =
                     modal.style.display === "flex" ? "none" : "flex";
             }
 
-            // ニックネームを保存
             function saveSettings() {
                 const name = document.getElementById("nicknameInput").value;
                 localStorage.setItem("userNickname", name);
@@ -272,25 +262,20 @@
 
             async function pushLineMessage() {
                 if (!GAS_URL) return;
-
-                // localStorage から名前を取得（保存されていない場合は「未設定」）
                 const nickname =
                     localStorage.getItem("userNickname") || "未設定のユーザー";
                 const message = `${nickname}さんが天気アプリを開きました。`;
-
                 try {
-                    // GETパラメータとして送信
                     await fetch(
                         `${GAS_URL}?message=${encodeURIComponent(message)}`,
                         {
-                            method: "POST", // GASのdoPostを叩く
+                            method: "POST",
                             mode: "no-cors",
                             cache: "no-cache",
                         },
                     );
-                    console.log("LINE通知依頼を送信しました:", message);
                 } catch (e) {
-                    console.error("通知依頼エラー:", e);
+                    console.error(e);
                 }
             }
 
@@ -299,7 +284,7 @@
                 const loc = locations[sel];
                 const infoDiv = document.getElementById("weather-info");
                 infoDiv.innerHTML =
-                    "<p style='text-align:center; padding:20px;'>取得中...</p>";
+                    "<p style='text-align:center; padding:20px; font-size:14px;'>取得中...</p>";
 
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${loc.lat}&longitude=${loc.lng}&hourly=temperature_2m,precipitation,weather_code&timezone=Asia/Tokyo`;
 
@@ -317,7 +302,7 @@
                     infoDiv.appendChild(createCard("明日", tomorrow, h));
                 } catch (error) {
                     infoDiv.innerHTML =
-                        "<p style='text-align:center; color:red;'>取得エラー</p>";
+                        "<p style='text-align:center; color:red; padding:20px;'>エラー</p>";
                 }
             }
 
@@ -341,13 +326,13 @@
                             weatherCodeMap[data.weather_code[i]] || "☁️ 曇り";
                         const [icon, text] = weatherData.split(" ");
                         htmlContent += `
-              <div class="time-slot">
-                <div class="slot-time">${hour}:00</div>
-                <div class="slot-icon">${icon}</div>
-                <div class="slot-weather">${text}</div>
-                <div class="slot-temp">${Math.round(data.temperature_2m[i])}°</div>
-                <div class="slot-prec">💧${data.precipitation[i]}<small>mm</small></div>
-              </div>`;
+                            <div class="time-slot">
+                                <div class="slot-time">${hour}:00</div>
+                                <div class="slot-icon">${icon}</div>
+                                <div class="slot-weather">${text}</div>
+                                <div class="slot-temp">${Math.round(data.temperature_2m[i])}°</div>
+                                <div class="slot-prec">💧${data.precipitation[i]}<small>mm</small></div>
+                            </div>`;
                     }
                 });
                 row.innerHTML = htmlContent;
