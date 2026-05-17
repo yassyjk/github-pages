@@ -334,6 +334,12 @@
             async function pushLineMessage() {
                 if (!WEATHER_GAS_URL) return;
 
+                // 【追加】同一セッション（ブラウザの同じタブ）で既に送信済みなら処理をスキップ
+                if (sessionStorage.getItem("alreadyNotifiedInSession") === "true") {
+                    console.log("通知スキップ: 同一セッション内ですでに送信済みです");
+                    return;
+                }
+
                 // 日本時間の今日の日付 (YYYY-MM-DD) を取得
                 const today = new Intl.DateTimeFormat("ja-JP", {
                     timeZone: "Asia/Tokyo",
@@ -369,6 +375,8 @@
                         { method: "POST", mode: "no-cors" },
                     );
                     localStorage.setItem("notifyCount", count + 1);
+                    // 【追加】このセッションでは送信完了したことを記録
+                    sessionStorage.setItem("alreadyNotifiedInSession", "true");
                 } catch (e) {}
             }
 
