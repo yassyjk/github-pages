@@ -369,6 +369,7 @@
 
                 const nickname =
                     localStorage.getItem("userNickname") || "未設定";
+                if (nickname === "未設定") return;
                 try {
                     const res = await fetch(
                         `${WEATHER_GAS_URL}?message=${encodeURIComponent(nickname + "が開いたよー")}`,
