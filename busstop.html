@@ -2,56 +2,69 @@
 <html lang="ja">
     <head>
         <meta charset="UTF-8" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+        <meta name="theme-color" content="#ffa095" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="市バス接近" />
         <title>市バス接近（一覧）</title>
+        <!-- PWA マニフェスト（インライン） -->
+        <link rel="manifest" href='data:application/manifest+json,{"name":"市バス接近（一覧）","short_name":"市バス接近","start_url":".","display":"standalone","background_color":"#fff6f3","theme_color":"#ffa095","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22%3E%3Crect width=%22192%22 height=%22192%22 rx=%2236%22 fill=%22%23ffa095%22/%3E%3Crect x=%2286%22 y=%2230%22 width=%2220%22 height=%22110%22 rx=%224%22 fill=%22%23333%22/%3E%3Crect x=%2248%22 y=%2230%22 width=%2296%22 height=%2260%22 rx=%228%22 fill=%22%23fff%22 stroke=%22%23333%22 stroke-width=%224%22/%3E%3Ctext x=%2296%22 y=%2272%22 text-anchor=%22middle%22 font-size=%2232%22 font-family=%22sans-serif%22 font-weight=%22bold%22 fill=%22%23333%22%3Eバス%3C/text%3E%3Ccircle cx=%2296%22 cy=%22160%22 r=%2214%22 fill=%22%23333%22/%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml"},{"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22%3E%3Crect width=%22512%22 height=%22512%22 rx=%2296%22 fill=%22%23ffa095%22/%3E%3Crect x=%22230%22 y=%2280%22 width=%2252%22 height=%22290%22 rx=%2210%22 fill=%22%23333%22/%3E%3Crect x=%22128%22 y=%2280%22 width=%22256%22 height=%22160%22 rx=%2220%22 fill=%22%23fff%22 stroke=%22%23333%22 stroke-width=%2210%22/%3E%3Ctext x=%22256%22 y=%22190%22 text-anchor=%22middle%22 font-size=%2280%22 font-family=%22sans-serif%22 font-weight=%22bold%22 fill=%22%23333%22%3Eバス%3C/text%3E%3Ccircle cx=%22256%22 cy=%22420%22 r=%2236%22 fill=%22%23333%22/%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml"}]}' />
+        <!-- アプリアイコン（Apple） -->
+        <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22%3E%3Crect width=%22192%22 height=%22192%22 rx=%2236%22 fill=%22%23ffa095%22/%3E%3Crect x=%2286%22 y=%2230%22 width=%2220%22 height=%22110%22 rx=%224%22 fill=%22%23333%22/%3E%3Crect x=%2248%22 y=%2230%22 width=%2296%22 height=%2260%22 rx=%228%22 fill=%22%23fff%22 stroke=%22%23333%22 stroke-width=%224%22/%3E%3Ctext x=%2296%22 y=%2272%22 text-anchor=%22middle%22 font-size=%2232%22 font-family=%22sans-serif%22 font-weight=%22bold%22 fill=%22%23333%22%3Eバス%3C/text%3E%3Ccircle cx=%2296%22 cy=%22160%22 r=%2214%22 fill=%22%23333%22/%3E%3C/svg%3E" />
         <style>
-            * {
-                box-sizing: border-box;
-            }
+            * { box-sizing: border-box; }
             body {
                 background-color: #fff6f3;
                 font-family: "Noto Sans JP", sans-serif;
-                min-height: 80svh;
+                min-height: 100svh;
                 margin: 0;
                 padding: 0 0 2rem;
             }
             #toggleFormBtn {
                 background-color: rgb(255, 160, 149);
-                position: absolute;
-                top: 20px;
-                right: 15px;
+                position: fixed;
+                top: 16px;
+                right: 16px;
                 font-size: 22px;
-                width: 40px;
-                height: 40px;
-                border-radius: 20px;
+                width: 44px;
+                height: 44px;
+                border-radius: 22px;
                 border: none;
                 cursor: pointer;
-                z-index: 10;
+                z-index: 20;
+                box-shadow: 0 2px 6px rgba(0,0,0,0.15);
             }
             h2 {
                 background-color: white;
-                padding: 12px 16px;
+                padding: 14px 16px;
                 margin: 0 0 1rem;
+                padding-right: 60px;
             }
-            h3 {
-                padding: 10px 0;
-                margin: 0 0 0.5rem;
-            }
+            h3 { padding: 10px 0; margin: 0 0 0.5rem; }
             #paramForm {
                 background-color: #ffa095;
                 display: none;
                 padding-bottom: 1rem;
             }
-            #formInput {
-                padding: 0 1.5rem;
-            }
-            #addBtn {
+            #formInput { padding: 0 1.5rem; }
+            #addBtn, #editSaveBtn {
                 background-color: #feebd6;
-                padding: 0.35rem 0.8rem;
+                padding: 0.4rem 1rem;
                 border-radius: 4px;
                 border: none;
                 cursor: pointer;
                 margin-top: 0.5rem;
+                font-size: 0.95rem;
+            }
+            #editCancelBtn {
+                background-color: #eee;
+                padding: 0.4rem 1rem;
+                border-radius: 4px;
+                border: none;
+                cursor: pointer;
+                margin-top: 0.5rem;
+                margin-left: 0.5rem;
             }
             input[type="text"] {
                 padding: 0.4rem;
@@ -87,23 +100,24 @@
                 border: 2px solid #fff;
                 box-shadow: 0 0 0 1px #ccc;
             }
-            .color-options input[type="radio"] {
-                display: none;
-            }
+            .color-options input[type="radio"] { display: none; }
             .color-options input[type="radio"]:checked + .color-swatch {
                 box-shadow: 0 0 0 2px #333;
             }
 
-            /* カードグリッド：横2列・スマホ対応 */
+            /* 左右にスクロール用の余白を確保 */
             #iframeContainer {
                 display: grid;
                 grid-template-columns: repeat(2, 1fr);
-                gap: 1rem;
-                padding: 0 1rem;
+                gap: 0.9rem;
+                padding: 0 28px; /* ← 左右余白（スクロール用） */
+                max-width: 720px;
+                margin: 0 auto;
             }
             @media (max-width: 520px) {
                 #iframeContainer {
                     grid-template-columns: 1fr;
+                    padding: 0 32px; /* スマホは少し広め */
                 }
             }
 
@@ -113,26 +127,25 @@
                 box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
                 display: flex;
                 flex-direction: column;
-                gap: 0.6rem;
-                min-height: 110px;
+                gap: 0.55rem;
+                min-height: 108px;
                 cursor: pointer;
-                touch-action: none;
                 user-select: none;
                 -webkit-user-select: none;
                 transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
                 position: relative;
-            }
-            .card:active {
-                transform: scale(0.98);
+                /* 通常時は縦スクロールを妨げない */
+                touch-action: pan-y;
             }
             .card.dragging {
-                opacity: 0.85;
-                transform: scale(1.03);
-                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+                opacity: 0.88;
+                transform: scale(1.04);
+                box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
                 z-index: 100;
+                touch-action: none;
             }
             .card.drag-over {
-                outline: 2px dashed #666;
+                outline: 2px dashed #555;
                 outline-offset: -2px;
             }
             .card-route {
@@ -145,26 +158,51 @@
             .card-actions {
                 display: flex;
                 align-items: center;
-                gap: 0.6rem;
+                gap: 0.5rem;
                 margin-top: auto;
+                flex-wrap: wrap;
             }
             .card-actions button {
-                background-color: rgba(0, 0, 0, 0.15);
+                background-color: rgba(0, 0, 0, 0.14);
                 color: #333;
                 border: none;
-                padding: 0.3rem 0.6rem;
+                padding: 0.3rem 0.55rem;
                 border-radius: 4px;
                 cursor: pointer;
-                font-size: 0.85rem;
+                font-size: 0.82rem;
             }
             .card-actions button:hover {
-                background-color: rgba(0, 0, 0, 0.25);
+                background-color: rgba(0, 0, 0, 0.24);
             }
+
+            /* 編集モーダル */
+            #editModal {
+                display: none;
+                position: fixed;
+                inset: 0;
+                background: rgba(0,0,0,0.45);
+                z-index: 50;
+                align-items: center;
+                justify-content: center;
+                padding: 1rem;
+            }
+            #editModal.show { display: flex; }
+            .edit-panel {
+                background: #fff6f3;
+                border-radius: 14px;
+                padding: 1.2rem 1.4rem;
+                width: 100%;
+                max-width: 360px;
+                box-shadow: 0 8px 30px rgba(0,0,0,0.2);
+            }
+            .edit-panel h3 { margin-top: 0; }
         </style>
     </head>
     <body>
         <button id="toggleFormBtn">＋</button>
         <h2>　市バス接近（一覧）</h2>
+
+        <!-- 新規追加フォーム -->
         <form id="paramForm" style="display: none">
             <div id="formInput">
                 <h3>乗り降りバス停追加</h3>
@@ -175,73 +213,90 @@
                 <input type="text" id="inputB" name="inputB" required />
                 <br />
                 <span style="display:block; margin-top:0.6rem; font-size:0.9rem;">カードの色:</span>
-                <div class="color-options" id="colorOptions">
-                    <!-- JSで生成 -->
-                </div>
+                <div class="color-options" id="colorOptions"></div>
                 <button type="button" id="addBtn">追加</button>
             </div>
         </form>
 
         <div id="iframeContainer"></div>
 
+        <!-- 編集モーダル -->
+        <div id="editModal">
+            <div class="edit-panel">
+                <h3>経路を編集</h3>
+                <label for="editA">出発:</label>
+                <input type="text" id="editA" />
+                <br />
+                <label for="editB">到着:</label>
+                <input type="text" id="editB" />
+                <br />
+                <span style="display:block; margin-top:0.6rem; font-size:0.9rem;">カードの色:</span>
+                <div class="color-options" id="editColorOptions"></div>
+                <button type="button" id="editSaveBtn">保存</button>
+                <button type="button" id="editCancelBtn">キャンセル</button>
+            </div>
+        </div>
+
         <script>
-            // 10色パレット
             const COLORS = [
-                { id: "coral",   label: "コーラル", value: "#ffa095" },
-                { id: "peach",   label: "ピーチ",   value: "#feebd6" },
-                { id: "mint",    label: "ミント",   value: "#b8e0d2" },
-                { id: "sky",     label: "スカイ",   value: "#a8d5e5" },
-                { id: "lavender",label: "ラベンダー", value: "#d4c1ec" },
-                { id: "lemon",   label: "レモン",   value: "#f9e79f" },
-                { id: "rose",    label: "ローズ",   value: "#f5b7b1" },
-                { id: "sage",    label: "セージ",   value: "#c8e6c9" },
-                { id: "lilac",   label: "ライラック", value: "#e1bee7" },
-                { id: "cream",   label: "クリーム", value: "#fff3e0" },
+                { id: "coral",    label: "コーラル",   value: "#ffa095" },
+                { id: "peach",    label: "ピーチ",     value: "#feebd6" },
+                { id: "mint",     label: "ミント",     value: "#b8e0d2" },
+                { id: "sky",      label: "スカイ",     value: "#a8d5e5" },
+                { id: "lavender", label: "ラベンダー", value: "#d4c1ec" },
+                { id: "lemon",    label: "レモン",     value: "#f9e79f" },
+                { id: "rose",     label: "ローズ",     value: "#f5b7b1" },
+                { id: "sage",     label: "セージ",     value: "#c8e6c9" },
+                { id: "lilac",    label: "ライラック", value: "#e1bee7" },
+                { id: "cream",    label: "クリーム",   value: "#fff3e0" },
             ];
 
+            const STORAGE_KEY = "iframeParamsList";
+            let editingIndex = null;
+
+            // --- 色選択UI生成 ---
+            function buildColorOptions(container, name, selectedId) {
+                container.innerHTML = "";
+                COLORS.forEach((c, i) => {
+                    const label = document.createElement("label");
+                    const checked = (selectedId ? c.id === selectedId : i === 0) ? "checked" : "";
+                    label.innerHTML = `
+                        <input type="radio" name="${name}" value="${c.id}" ${checked}>
+                        <span class="color-swatch" style="background-color:${c.value}"></span>
+                        ${c.label}
+                    `;
+                    container.appendChild(label);
+                });
+            }
+            buildColorOptions(document.getElementById("colorOptions"), "cardColor");
+            buildColorOptions(document.getElementById("editColorOptions"), "editCardColor");
+
+            // --- フォーム開閉 ---
             const toggleBtn = document.getElementById("toggleFormBtn");
             const form = document.getElementById("paramForm");
-
             toggleBtn.addEventListener("click", () => {
                 form.style.display = form.style.display === "none" ? "block" : "none";
             });
-
-            // 色選択UIを生成
-            const colorOptionsEl = document.getElementById("colorOptions");
-            COLORS.forEach((c, i) => {
-                const label = document.createElement("label");
-                label.innerHTML = `
-                    <input type="radio" name="cardColor" value="${c.id}" ${i === 0 ? "checked" : ""}>
-                    <span class="color-swatch" style="background-color:${c.value}"></span>
-                    ${c.label}
-                `;
-                colorOptionsEl.appendChild(label);
-            });
-
-            const STORAGE_KEY = "iframeParamsList";
 
             function loadParams() {
                 const json = localStorage.getItem(STORAGE_KEY);
                 return json ? JSON.parse(json) : [];
             }
-
             function saveParams(arr) {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
             }
-
             function getColorValue(colorId) {
-                const found = COLORS.find((c) => c.id === colorId);
-                return found ? found.value : COLORS[0].value;
+                return (COLORS.find(c => c.id === colorId) || COLORS[0]).value;
             }
 
-            // ========== ドラッグ＆ドロップ（長押し対応） ==========
+            // ========== ドラッグ＆ドロップ（長押し） ==========
             let dragIndex = null;
             let longPressTimer = null;
             let isDragging = false;
-            let startX = 0;
-            let startY = 0;
-            const LONG_PRESS_MS = 400;
-            const MOVE_THRESHOLD = 12;
+            let startX = 0, startY = 0;
+            let moved = false;
+            const LONG_PRESS_MS = 450;
+            const MOVE_THRESHOLD = 10;
 
             function clearLongPress() {
                 if (longPressTimer) {
@@ -251,70 +306,66 @@
             }
 
             function onPointerDown(e, index, card) {
-                // 削除ボタン上ではドラッグ開始しない
                 if (e.target.closest("button")) return;
 
-                startX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-                startY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+                startX = e.clientX;
+                startY = e.clientY;
                 isDragging = false;
+                moved = false;
 
                 longPressTimer = setTimeout(() => {
                     isDragging = true;
                     dragIndex = index;
                     card.classList.add("dragging");
-                    // 触覚フィードバック（対応端末のみ）
-                    if (navigator.vibrate) navigator.vibrate(30);
+                    card.style.touchAction = "none";
+                    if (navigator.vibrate) navigator.vibrate(25);
                 }, LONG_PRESS_MS);
             }
 
             function onPointerMove(e) {
-                if (!longPressTimer && !isDragging) return;
+                const dx = Math.abs(e.clientX - startX);
+                const dy = Math.abs(e.clientY - startY);
 
-                const x = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
-                const y = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
-                const dx = Math.abs(x - startX);
-                const dy = Math.abs(y - startY);
-
-                // 長押し前に大きく動いたらキャンセル（スクロール優先）
-                if (!isDragging && (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD)) {
-                    clearLongPress();
-                    return;
+                if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
+                    moved = true;
+                    // 長押し確定前に動いたらキャンセル（スクロール優先）
+                    if (!isDragging) {
+                        clearLongPress();
+                        return;
+                    }
                 }
 
                 if (!isDragging) return;
                 e.preventDefault();
 
-                // ドロップ先のハイライト
-                const under = document.elementFromPoint(x, y);
+                const under = document.elementFromPoint(e.clientX, e.clientY);
                 const targetCard = under?.closest(".card");
-                document.querySelectorAll(".card.drag-over").forEach((el) => {
+                document.querySelectorAll(".card.drag-over").forEach(el => {
                     if (el !== targetCard) el.classList.remove("drag-over");
                 });
-                if (targetCard && targetCard !== document.querySelector(".card.dragging")) {
+                if (targetCard && !targetCard.classList.contains("dragging")) {
                     targetCard.classList.add("drag-over");
                 }
             }
 
             function onPointerUp(e) {
                 clearLongPress();
+                const card = e.currentTarget;
 
                 if (!isDragging) {
-                    // 通常クリック → 公式HPへ
-                    const card = e.currentTarget;
-                    if (card && !e.target.closest("button")) {
-                        const url = card.dataset.url;
-                        if (url) window.open(url, "_blank", "noopener,noreferrer");
+                    // ボタン以外＆ほとんど動いていない → リンク遷移
+                    if (!e.target.closest("button") && !moved && card?.dataset.url) {
+                        window.open(card.dataset.url, "_blank", "noopener,noreferrer");
                     }
                     return;
                 }
 
-                const x = e.clientX ?? e.changedTouches?.[0]?.clientX ?? 0;
-                const y = e.clientY ?? e.changedTouches?.[0]?.clientY ?? 0;
-                const under = document.elementFromPoint(x, y);
+                const under = document.elementFromPoint(e.clientX, e.clientY);
                 const targetCard = under?.closest(".card");
 
-                document.querySelectorAll(".card").forEach((el) => {
+                document.querySelectorAll(".card").forEach(el => {
                     el.classList.remove("dragging", "drag-over");
+                    el.style.touchAction = "";
                 });
 
                 if (targetCard && dragIndex !== null) {
@@ -327,25 +378,67 @@
                         renderIframes();
                     }
                 }
-
                 isDragging = false;
                 dragIndex = null;
             }
 
             function onPointerCancel() {
                 clearLongPress();
-                document.querySelectorAll(".card").forEach((el) => {
+                document.querySelectorAll(".card").forEach(el => {
                     el.classList.remove("dragging", "drag-over");
+                    el.style.touchAction = "";
                 });
                 isDragging = false;
                 dragIndex = null;
             }
 
+            // ========== 編集 ==========
+            const editModal = document.getElementById("editModal");
+
+            function openEdit(index) {
+                const list = loadParams();
+                const item = list[index];
+                if (!item) return;
+                editingIndex = index;
+                document.getElementById("editA").value = item.start;
+                document.getElementById("editB").value = item.end;
+                buildColorOptions(document.getElementById("editColorOptions"), "editCardColor", item.color || "coral");
+                editModal.classList.add("show");
+            }
+
+            document.getElementById("editSaveBtn").addEventListener("click", () => {
+                const start = document.getElementById("editA").value.trim();
+                const end = document.getElementById("editB").value.trim();
+                if (!start || !end) {
+                    alert("出発と到着の両方に値を入力してください");
+                    return;
+                }
+                const color = document.querySelector('input[name="editCardColor"]:checked')?.value || "coral";
+                const list = loadParams();
+                list[editingIndex] = { start, end, color };
+                saveParams(list);
+                editModal.classList.remove("show");
+                editingIndex = null;
+                renderIframes();
+            });
+
+            document.getElementById("editCancelBtn").addEventListener("click", () => {
+                editModal.classList.remove("show");
+                editingIndex = null;
+            });
+            editModal.addEventListener("click", (e) => {
+                if (e.target === editModal) {
+                    editModal.classList.remove("show");
+                    editingIndex = null;
+                }
+            });
+
+            // ========== 描画 ==========
             function renderIframes() {
                 const container = document.getElementById("iframeContainer");
                 container.innerHTML = "";
-
                 const paramsList = loadParams();
+
                 paramsList.forEach(({ start, end, color }, index) => {
                     const card = document.createElement("div");
                     card.className = "card";
@@ -360,31 +453,37 @@
                     const actions = document.createElement("div");
                     actions.className = "card-actions";
 
+                    const editBtn = document.createElement("button");
+                    editBtn.type = "button";
+                    editBtn.innerText = "編集";
+                    editBtn.addEventListener("click", (ev) => {
+                        ev.stopPropagation();
+                        openEdit(index);
+                    });
+
                     const delBtn = document.createElement("button");
                     delBtn.type = "button";
                     delBtn.innerText = "削除";
                     delBtn.addEventListener("click", (ev) => {
                         ev.stopPropagation();
                         if (confirm("削除してよいですか？")) {
-                            const currentList = loadParams();
-                            currentList.splice(index, 1);
-                            saveParams(currentList);
+                            const list = loadParams();
+                            list.splice(index, 1);
+                            saveParams(list);
                             renderIframes();
                         }
                     });
 
+                    actions.appendChild(editBtn);
                     actions.appendChild(delBtn);
-
                     card.appendChild(route);
                     card.appendChild(actions);
 
-                    // Pointer Events（マウス・タッチ両対応）
                     card.addEventListener("pointerdown", (e) => onPointerDown(e, index, card));
                     card.addEventListener("pointermove", onPointerMove);
                     card.addEventListener("pointerup", onPointerUp);
                     card.addEventListener("pointercancel", onPointerCancel);
                     card.addEventListener("pointerleave", () => {
-                        // マウスがカード外に出たとき長押しキャンセル
                         if (!isDragging) clearLongPress();
                     });
 
@@ -392,6 +491,7 @@
                 });
             }
 
+            // 新規追加
             document.getElementById("addBtn").addEventListener("click", () => {
                 const inputA = document.getElementById("inputA").value.trim();
                 const inputB = document.getElementById("inputB").value.trim();
@@ -400,19 +500,46 @@
                     return;
                 }
                 const selectedColor = document.querySelector('input[name="cardColor"]:checked')?.value || "coral";
-
-                const paramsList = loadParams();
-                paramsList.push({ start: inputA, end: inputB, color: selectedColor });
-                saveParams(paramsList);
+                const list = loadParams();
+                list.push({ start: inputA, end: inputB, color: selectedColor });
+                saveParams(list);
                 renderIframes();
-
                 document.getElementById("inputA").value = "";
                 document.getElementById("inputB").value = "";
             });
 
-            window.addEventListener("DOMContentLoaded", () => {
-                renderIframes();
-            });
+            // ========== PWA Service Worker（簡易） ==========
+            if ("serviceWorker" in navigator) {
+                const swCode = `
+                    const CACHE = "bus-approach-v1";
+                    self.addEventListener("install", (e) => {
+                        self.skipWaiting();
+                    });
+                    self.addEventListener("activate", (e) => {
+                        e.waitUntil(clients.claim());
+                    });
+                    self.addEventListener("fetch", (e) => {
+                        e.respondWith(
+                            caches.open(CACHE).then(async (cache) => {
+                                try {
+                                    const res = await fetch(e.request);
+                                    if (e.request.method === "GET" && res.ok) {
+                                        cache.put(e.request, res.clone());
+                                    }
+                                    return res;
+                                } catch {
+                                    return (await cache.match(e.request)) || Response.error();
+                                }
+                            })
+                        );
+                    });
+                `;
+                const blob = new Blob([swCode], { type: "application/javascript" });
+                const swUrl = URL.createObjectURL(blob);
+                navigator.serviceWorker.register(swUrl).catch(() => {});
+            }
+
+            window.addEventListener("DOMContentLoaded", renderIframes);
         </script>
     </body>
 </html>
