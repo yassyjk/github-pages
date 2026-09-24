@@ -5,11 +5,15 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <title>市バス接近（一覧）</title>
         <style>
+            * {
+                box-sizing: border-box;
+            }
             body {
                 background-color: #fff6f3;
                 font-family: "Noto Sans JP", sans-serif;
-
                 min-height: 80svh;
+                margin: 0;
+                padding: 0 0 2rem;
             }
             #toggleFormBtn {
                 background-color: rgb(255, 160, 149);
@@ -22,82 +26,129 @@
                 border-radius: 20px;
                 border: none;
                 cursor: pointer;
+                z-index: 10;
             }
             h2 {
                 background-color: white;
-                padding: 7px;
+                padding: 12px 16px;
+                margin: 0 0 1rem;
             }
             h3 {
-                padding: 10px;
-                margin-bottom: 0px;
-                width: 100%;
+                padding: 10px 0;
+                margin: 0 0 0.5rem;
             }
             #paramForm {
                 background-color: #ffa095;
                 display: none;
+                padding-bottom: 1rem;
             }
             #formInput {
-                padding: 0 2rem;
+                padding: 0 1.5rem;
             }
             #addBtn {
                 background-color: #feebd6;
-                padding: 0.2rem 0.6rem;
-                border-radius: 2px;
+                padding: 0.35rem 0.8rem;
+                border-radius: 4px;
+                border: none;
+                cursor: pointer;
+                margin-top: 0.5rem;
             }
-            input {
-                padding: 0.3rem;
-                margin-bottom: 0.2rem;
-                width: 50%;
-            }
-            .iframe-wrap {
-                position: relative;
+            input[type="text"] {
+                padding: 0.4rem;
+                margin-bottom: 0.4rem;
                 width: 100%;
-                padding-top: 70%;
-                margin-bottom: 2rem;
-                background-color: #feebd6;
-                border-radius: 5px;
+                max-width: 280px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
             }
-            .iframe-wrap iframe {
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                border: none;
-                width: calc(97% / 0.6); /* scaleの逆数で幅を調整 */
-                height: calc(97% / 0.6); /* 同じく高さを調整 */
-                border: none;
-                transform: translate(-50%, -50%) scale(0.6);
-                border-radius: 10px;
+            form label {
+                display: inline-block;
+                margin-right: 8px;
+                min-width: 3em;
             }
-            .heading {
+            .color-options {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin: 0.6rem 0 0.8rem;
+            }
+            .color-options label {
                 display: flex;
                 align-items: center;
-                gap: 0.75rem;
-                font-weight: bold;
-                margin-top: 0.5rem;
-                padding: 0.5rem 0.5rem 0.5rem 1rem;
-                background-color: #feebd6;
-            }
-            
-            .heading span {
-                margin-right: 0;
-            }
-            
-            .heading button {
-                background-color: #ffa095;
-                padding: 0.3rem 0.5rem;
-                border-radius: 2px;
+                gap: 4px;
                 cursor: pointer;
+                min-width: auto;
+                font-size: 0.85rem;
             }
-            
-            .heading a {
-                margin-left: auto;
+            .color-swatch {
+                width: 22px;
+                height: 22px;
+                border-radius: 50%;
+                border: 2px solid #fff;
+                box-shadow: 0 0 0 1px #ccc;
+            }
+            .color-options input[type="radio"] {
+                display: none;
+            }
+            .color-options input[type="radio"]:checked + .color-swatch {
+                box-shadow: 0 0 0 2px #333;
             }
 
-            form label {
-                margin-right: 8px;
+            /* カードグリッド：横2列・スマホ対応 */
+            #iframeContainer {
+                display: grid;
+                grid-template-columns: repeat(2, 1fr);
+                gap: 1rem;
+                padding: 0 1rem;
             }
-            form input {
-                margin-right: 12px;
+            @media (max-width: 520px) {
+                #iframeContainer {
+                    grid-template-columns: 1fr;
+                }
+            }
+
+            .card {
+                border-radius: 12px;
+                padding: 1rem 1.1rem;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+                display: flex;
+                flex-direction: column;
+                gap: 0.6rem;
+                min-height: 110px;
+            }
+            .card-route {
+                font-weight: bold;
+                font-size: 1.05rem;
+                line-height: 1.35;
+                word-break: break-all;
+            }
+            .card-actions {
+                display: flex;
+                align-items: center;
+                gap: 0.6rem;
+                margin-top: auto;
+                flex-wrap: wrap;
+            }
+            .card-actions button {
+                background-color: rgba(0, 0, 0, 0.15);
+                color: #333;
+                border: none;
+                padding: 0.3rem 0.6rem;
+                border-radius: 4px;
+                cursor: pointer;
+                font-size: 0.85rem;
+            }
+            .card-actions button:hover {
+                background-color: rgba(0, 0, 0, 0.25);
+            }
+            .card-actions a {
+                margin-left: auto;
+                font-size: 0.9rem;
+                color: #1a5fb4;
+                text-decoration: none;
+            }
+            .card-actions a:hover {
+                text-decoration: underline;
             }
         </style>
     </head>
@@ -112,6 +163,11 @@
                 <br />
                 <label for="inputB">到着:</label>
                 <input type="text" id="inputB" name="inputB" required />
+                <br />
+                <span style="display:block; margin-top:0.6rem; font-size:0.9rem;">カードの色:</span>
+                <div class="color-options" id="colorOptions">
+                    <!-- JSで生成 -->
+                </div>
                 <button type="button" id="addBtn">追加</button>
             </div>
         </form>
@@ -119,15 +175,37 @@
         <div id="iframeContainer"></div>
 
         <script>
+            // 10色パレット
+            const COLORS = [
+                { id: "coral",   label: "コーラル", value: "#ffa095" },
+                { id: "peach",   label: "ピーチ",   value: "#feebd6" },
+                { id: "mint",    label: "ミント",   value: "#b8e0d2" },
+                { id: "sky",     label: "スカイ",   value: "#a8d5e5" },
+                { id: "lavender",label: "ラベンダー", value: "#d4c1ec" },
+                { id: "lemon",   label: "レモン",   value: "#f9e79f" },
+                { id: "rose",    label: "ローズ",   value: "#f5b7b1" },
+                { id: "sage",    label: "セージ",   value: "#c8e6c9" },
+                { id: "lilac",   label: "ライラック", value: "#e1bee7" },
+                { id: "cream",   label: "クリーム", value: "#fff3e0" },
+            ];
+
             const toggleBtn = document.getElementById("toggleFormBtn");
             const form = document.getElementById("paramForm");
 
             toggleBtn.addEventListener("click", () => {
-                if (form.style.display === "none") {
-                    form.style.display = "block";
-                } else {
-                    form.style.display = "none";
-                }
+                form.style.display = form.style.display === "none" ? "block" : "none";
+            });
+
+            // 色選択UIを生成
+            const colorOptionsEl = document.getElementById("colorOptions");
+            COLORS.forEach((c, i) => {
+                const label = document.createElement("label");
+                label.innerHTML = `
+                    <input type="radio" name="cardColor" value="${c.id}" ${i === 0 ? "checked" : ""}>
+                    <span class="color-swatch" style="background-color:${c.value}"></span>
+                    ${c.label}
+                `;
+                colorOptionsEl.appendChild(label);
             });
 
             const STORAGE_KEY = "iframeParamsList";
@@ -141,18 +219,28 @@
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(arr));
             }
 
+            function getColorValue(colorId) {
+                const found = COLORS.find((c) => c.id === colorId);
+                return found ? found.value : COLORS[0].value;
+            }
+
             function renderIframes() {
                 const container = document.getElementById("iframeContainer");
                 container.innerHTML = "";
-            
+
                 const paramsList = loadParams();
-                paramsList.forEach(({ start, end }, index) => {
-                    const heading = document.createElement("div");
-                    heading.className = "heading";
-            
-                    const text = document.createElement("span");
-                    text.innerText = `${start} → ${end}`;
-            
+                paramsList.forEach(({ start, end, color }, index) => {
+                    const card = document.createElement("div");
+                    card.className = "card";
+                    card.style.backgroundColor = getColorValue(color || "coral");
+
+                    const route = document.createElement("div");
+                    route.className = "card-route";
+                    route.innerText = `${start} → ${end}`;
+
+                    const actions = document.createElement("div");
+                    actions.className = "card-actions";
+
                     const delBtn = document.createElement("button");
                     delBtn.type = "button";
                     delBtn.innerText = "削除";
@@ -162,16 +250,19 @@
                         saveParams(currentList);
                         renderIframes();
                     });
-            
+
                     const link = document.createElement("a");
                     link.href = `https://kotsu.city.nagoya.jp/jp/pc/bus/access.html?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}#btmMainArea`;
                     link.innerText = "公式HPへ";
                     link.target = "_blank";
-            
-                    heading.appendChild(text);
-                    heading.appendChild(delBtn);
-                    heading.appendChild(link);
-                    container.appendChild(heading);
+                    link.rel = "noopener noreferrer";
+
+                    actions.appendChild(delBtn);
+                    actions.appendChild(link);
+
+                    card.appendChild(route);
+                    card.appendChild(actions);
+                    container.appendChild(card);
                 });
             }
 
@@ -182,11 +273,16 @@
                     alert("出発と到着の両方に値を入力してください");
                     return;
                 }
+                const selectedColor = document.querySelector('input[name="cardColor"]:checked')?.value || "coral";
+
                 const paramsList = loadParams();
-                paramsList.push({ start: inputA, end: inputB });
+                paramsList.push({ start: inputA, end: inputB, color: selectedColor });
                 saveParams(paramsList);
                 renderIframes();
-                document.getElementById("paramForm").reset();
+
+                document.getElementById("inputA").value = "";
+                document.getElementById("inputB").value = "";
+                // 色は前回選択を維持
             });
 
             window.addEventListener("DOMContentLoaded", () => {
