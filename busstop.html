@@ -115,19 +115,38 @@
                 flex-direction: column;
                 gap: 0.6rem;
                 min-height: 110px;
+                cursor: pointer;
+                touch-action: none;
+                user-select: none;
+                -webkit-user-select: none;
+                transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+                position: relative;
+            }
+            .card:active {
+                transform: scale(0.98);
+            }
+            .card.dragging {
+                opacity: 0.85;
+                transform: scale(1.03);
+                box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+                z-index: 100;
+            }
+            .card.drag-over {
+                outline: 2px dashed #666;
+                outline-offset: -2px;
             }
             .card-route {
                 font-weight: bold;
                 font-size: 1.05rem;
                 line-height: 1.35;
                 word-break: break-all;
+                pointer-events: none;
             }
             .card-actions {
                 display: flex;
                 align-items: center;
                 gap: 0.6rem;
                 margin-top: auto;
-                flex-wrap: wrap;
             }
             .card-actions button {
                 background-color: rgba(0, 0, 0, 0.15);
@@ -140,15 +159,6 @@
             }
             .card-actions button:hover {
                 background-color: rgba(0, 0, 0, 0.25);
-            }
-            .card-actions a {
-                margin-left: auto;
-                font-size: 0.9rem;
-                color: #1a5fb4;
-                text-decoration: none;
-            }
-            .card-actions a:hover {
-                text-decoration: underline;
             }
         </style>
     </head>
@@ -224,6 +234,113 @@
                 return found ? found.value : COLORS[0].value;
             }
 
+            // ========== ドラッグ＆ドロップ（長押し対応） ==========
+            let dragIndex = null;
+            let longPressTimer = null;
+            let isDragging = false;
+            let startX = 0;
+            let startY = 0;
+            const LONG_PRESS_MS = 400;
+            const MOVE_THRESHOLD = 12;
+
+            function clearLongPress() {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+            }
+
+            function onPointerDown(e, index, card) {
+                // 削除ボタン上ではドラッグ開始しない
+                if (e.target.closest("button")) return;
+
+                startX = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+                startY = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+                isDragging = false;
+
+                longPressTimer = setTimeout(() => {
+                    isDragging = true;
+                    dragIndex = index;
+                    card.classList.add("dragging");
+                    // 触覚フィードバック（対応端末のみ）
+                    if (navigator.vibrate) navigator.vibrate(30);
+                }, LONG_PRESS_MS);
+            }
+
+            function onPointerMove(e) {
+                if (!longPressTimer && !isDragging) return;
+
+                const x = e.clientX ?? e.touches?.[0]?.clientX ?? 0;
+                const y = e.clientY ?? e.touches?.[0]?.clientY ?? 0;
+                const dx = Math.abs(x - startX);
+                const dy = Math.abs(y - startY);
+
+                // 長押し前に大きく動いたらキャンセル（スクロール優先）
+                if (!isDragging && (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD)) {
+                    clearLongPress();
+                    return;
+                }
+
+                if (!isDragging) return;
+                e.preventDefault();
+
+                // ドロップ先のハイライト
+                const under = document.elementFromPoint(x, y);
+                const targetCard = under?.closest(".card");
+                document.querySelectorAll(".card.drag-over").forEach((el) => {
+                    if (el !== targetCard) el.classList.remove("drag-over");
+                });
+                if (targetCard && targetCard !== document.querySelector(".card.dragging")) {
+                    targetCard.classList.add("drag-over");
+                }
+            }
+
+            function onPointerUp(e) {
+                clearLongPress();
+
+                if (!isDragging) {
+                    // 通常クリック → 公式HPへ
+                    const card = e.currentTarget;
+                    if (card && !e.target.closest("button")) {
+                        const url = card.dataset.url;
+                        if (url) window.open(url, "_blank", "noopener,noreferrer");
+                    }
+                    return;
+                }
+
+                const x = e.clientX ?? e.changedTouches?.[0]?.clientX ?? 0;
+                const y = e.clientY ?? e.changedTouches?.[0]?.clientY ?? 0;
+                const under = document.elementFromPoint(x, y);
+                const targetCard = under?.closest(".card");
+
+                document.querySelectorAll(".card").forEach((el) => {
+                    el.classList.remove("dragging", "drag-over");
+                });
+
+                if (targetCard && dragIndex !== null) {
+                    const toIndex = Number(targetCard.dataset.index);
+                    if (toIndex !== dragIndex && !isNaN(toIndex)) {
+                        const list = loadParams();
+                        const [item] = list.splice(dragIndex, 1);
+                        list.splice(toIndex, 0, item);
+                        saveParams(list);
+                        renderIframes();
+                    }
+                }
+
+                isDragging = false;
+                dragIndex = null;
+            }
+
+            function onPointerCancel() {
+                clearLongPress();
+                document.querySelectorAll(".card").forEach((el) => {
+                    el.classList.remove("dragging", "drag-over");
+                });
+                isDragging = false;
+                dragIndex = null;
+            }
+
             function renderIframes() {
                 const container = document.getElementById("iframeContainer");
                 container.innerHTML = "";
@@ -233,6 +350,8 @@
                     const card = document.createElement("div");
                     card.className = "card";
                     card.style.backgroundColor = getColorValue(color || "coral");
+                    card.dataset.index = index;
+                    card.dataset.url = `https://kotsu.city.nagoya.jp/jp/pc/bus/access.html?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}#btmMainArea`;
 
                     const route = document.createElement("div");
                     route.className = "card-route";
@@ -244,24 +363,31 @@
                     const delBtn = document.createElement("button");
                     delBtn.type = "button";
                     delBtn.innerText = "削除";
-                    delBtn.addEventListener("click", () => {
-                        const currentList = loadParams();
-                        currentList.splice(index, 1);
-                        saveParams(currentList);
-                        renderIframes();
+                    delBtn.addEventListener("click", (ev) => {
+                        ev.stopPropagation();
+                        if (confirm("削除してよいですか？")) {
+                            const currentList = loadParams();
+                            currentList.splice(index, 1);
+                            saveParams(currentList);
+                            renderIframes();
+                        }
                     });
 
-                    const link = document.createElement("a");
-                    link.href = `https://kotsu.city.nagoya.jp/jp/pc/bus/access.html?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}#btmMainArea`;
-                    link.innerText = "公式HPへ";
-                    link.target = "_blank";
-                    link.rel = "noopener noreferrer";
-
                     actions.appendChild(delBtn);
-                    actions.appendChild(link);
 
                     card.appendChild(route);
                     card.appendChild(actions);
+
+                    // Pointer Events（マウス・タッチ両対応）
+                    card.addEventListener("pointerdown", (e) => onPointerDown(e, index, card));
+                    card.addEventListener("pointermove", onPointerMove);
+                    card.addEventListener("pointerup", onPointerUp);
+                    card.addEventListener("pointercancel", onPointerCancel);
+                    card.addEventListener("pointerleave", () => {
+                        // マウスがカード外に出たとき長押しキャンセル
+                        if (!isDragging) clearLongPress();
+                    });
+
                     container.appendChild(card);
                 });
             }
@@ -282,7 +408,6 @@
 
                 document.getElementById("inputA").value = "";
                 document.getElementById("inputB").value = "";
-                // 色は前回選択を維持
             });
 
             window.addEventListener("DOMContentLoaded", () => {
