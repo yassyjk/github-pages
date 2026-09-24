@@ -8,9 +8,7 @@
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-title" content="市バス接近" />
         <title>市バス接近（一覧）</title>
-        <!-- PWA マニフェスト（インライン） -->
         <link rel="manifest" href='data:application/manifest+json,{"name":"市バス接近（一覧）","short_name":"市バス接近","start_url":".","display":"standalone","background_color":"#fff6f3","theme_color":"#ffa095","icons":[{"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22%3E%3Crect width=%22192%22 height=%22192%22 rx=%2236%22 fill=%22%23ffa095%22/%3E%3Crect x=%2286%22 y=%2230%22 width=%2220%22 height=%22110%22 rx=%224%22 fill=%22%23333%22/%3E%3Crect x=%2248%22 y=%2230%22 width=%2296%22 height=%2260%22 rx=%228%22 fill=%22%23fff%22 stroke=%22%23333%22 stroke-width=%224%22/%3E%3Ctext x=%2296%22 y=%2272%22 text-anchor=%22middle%22 font-size=%2232%22 font-family=%22sans-serif%22 font-weight=%22bold%22 fill=%22%23333%22%3Eバス%3C/text%3E%3Ccircle cx=%2296%22 cy=%22160%22 r=%2214%22 fill=%22%23333%22/%3E%3C/svg%3E","sizes":"192x192","type":"image/svg+xml"},{"src":"data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 512 512%22%3E%3Crect width=%22512%22 height=%22512%22 rx=%2296%22 fill=%22%23ffa095%22/%3E%3Crect x=%22230%22 y=%2280%22 width=%2252%22 height=%22290%22 rx=%2210%22 fill=%22%23333%22/%3E%3Crect x=%22128%22 y=%2280%22 width=%22256%22 height=%22160%22 rx=%2220%22 fill=%22%23fff%22 stroke=%22%23333%22 stroke-width=%2210%22/%3E%3Ctext x=%22256%22 y=%22190%22 text-anchor=%22middle%22 font-size=%2280%22 font-family=%22sans-serif%22 font-weight=%22bold%22 fill=%22%23333%22%3Eバス%3C/text%3E%3Ccircle cx=%22256%22 cy=%22420%22 r=%2236%22 fill=%22%23333%22/%3E%3C/svg%3E","sizes":"512x512","type":"image/svg+xml"}]}' />
-        <!-- アプリアイコン（Apple） -->
         <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 192 192%22%3E%3Crect width=%22192%22 height=%22192%22 rx=%2236%22 fill=%22%23ffa095%22/%3E%3Crect x=%2286%22 y=%2230%22 width=%2220%22 height=%22110%22 rx=%224%22 fill=%22%23333%22/%3E%3Crect x=%2248%22 y=%2230%22 width=%2296%22 height=%2260%22 rx=%228%22 fill=%22%23fff%22 stroke=%22%23333%22 stroke-width=%224%22/%3E%3Ctext x=%2296%22 y=%2272%22 text-anchor=%22middle%22 font-size=%2232%22 font-family=%22sans-serif%22 font-weight=%22bold%22 fill=%22%23333%22%3Eバス%3C/text%3E%3Ccircle cx=%2296%22 cy=%22160%22 r=%2214%22 fill=%22%23333%22/%3E%3C/svg%3E" />
         <style>
             * { box-sizing: border-box; }
@@ -20,6 +18,10 @@
                 min-height: 100svh;
                 margin: 0;
                 padding: 0 0 2rem;
+            }
+            body.dragging-active {
+                overflow: hidden;
+                touch-action: none;
             }
             #toggleFormBtn {
                 background-color: rgb(255, 160, 149);
@@ -105,19 +107,18 @@
                 box-shadow: 0 0 0 2px #333;
             }
 
-            /* 左右にスクロール用の余白を確保 */
             #iframeContainer {
                 display: grid;
                 grid-template-columns: repeat(2, 1fr);
                 gap: 0.9rem;
-                padding: 0 28px; /* ← 左右余白（スクロール用） */
+                padding: 0 28px;
                 max-width: 720px;
                 margin: 0 auto;
             }
             @media (max-width: 520px) {
                 #iframeContainer {
                     grid-template-columns: 1fr;
-                    padding: 0 32px; /* スマホは少し広め */
+                    padding: 0 32px;
                 }
             }
 
@@ -134,11 +135,10 @@
                 -webkit-user-select: none;
                 transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
                 position: relative;
-                /* 通常時は縦スクロールを妨げない */
                 touch-action: pan-y;
             }
             .card.dragging {
-                opacity: 0.88;
+                opacity: 0.9;
                 transform: scale(1.04);
                 box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
                 z-index: 100;
@@ -175,7 +175,6 @@
                 background-color: rgba(0, 0, 0, 0.24);
             }
 
-            /* 編集モーダル */
             #editModal {
                 display: none;
                 position: fixed;
@@ -202,7 +201,6 @@
         <button id="toggleFormBtn">＋</button>
         <h2>　市バス接近（一覧）</h2>
 
-        <!-- 新規追加フォーム -->
         <form id="paramForm" style="display: none">
             <div id="formInput">
                 <h3>乗り降りバス停追加</h3>
@@ -220,7 +218,6 @@
 
         <div id="iframeContainer"></div>
 
-        <!-- 編集モーダル -->
         <div id="editModal">
             <div class="edit-panel">
                 <h3>経路を編集</h3>
@@ -254,7 +251,6 @@
             const STORAGE_KEY = "iframeParamsList";
             let editingIndex = null;
 
-            // --- 色選択UI生成 ---
             function buildColorOptions(container, name, selectedId) {
                 container.innerHTML = "";
                 COLORS.forEach((c, i) => {
@@ -271,7 +267,6 @@
             buildColorOptions(document.getElementById("colorOptions"), "cardColor");
             buildColorOptions(document.getElementById("editColorOptions"), "editCardColor");
 
-            // --- フォーム開閉 ---
             const toggleBtn = document.getElementById("toggleFormBtn");
             const form = document.getElementById("paramForm");
             toggleBtn.addEventListener("click", () => {
@@ -289,12 +284,13 @@
                 return (COLORS.find(c => c.id === colorId) || COLORS[0]).value;
             }
 
-            // ========== ドラッグ＆ドロップ（長押し） ==========
+            // ========== ドラッグ＆ドロップ ==========
             let dragIndex = null;
             let longPressTimer = null;
             let isDragging = false;
             let startX = 0, startY = 0;
             let moved = false;
+            let activePointerId = null;
             const LONG_PRESS_MS = 450;
             const MOVE_THRESHOLD = 10;
 
@@ -305,9 +301,22 @@
                 }
             }
 
+            function lockScroll() {
+                document.body.classList.add("dragging-active");
+            }
+            function unlockScroll() {
+                document.body.classList.remove("dragging-active");
+            }
+
+            // ドキュメント全体で touchmove を止める（ドラッグ中のみ）
+            function preventScroll(e) {
+                if (isDragging) e.preventDefault();
+            }
+
             function onPointerDown(e, index, card) {
                 if (e.target.closest("button")) return;
 
+                activePointerId = e.pointerId;
                 startX = e.clientX;
                 startY = e.clientY;
                 isDragging = false;
@@ -317,18 +326,22 @@
                     isDragging = true;
                     dragIndex = index;
                     card.classList.add("dragging");
-                    card.style.touchAction = "none";
+                    lockScroll();
+                    try { card.setPointerCapture(e.pointerId); } catch (_) {}
                     if (navigator.vibrate) navigator.vibrate(25);
                 }, LONG_PRESS_MS);
             }
 
             function onPointerMove(e) {
+                // 別ポインタは無視
+                if (activePointerId !== null && e.pointerId !== activePointerId) return;
+
                 const dx = Math.abs(e.clientX - startX);
                 const dy = Math.abs(e.clientY - startY);
 
                 if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
                     moved = true;
-                    // 長押し確定前に動いたらキャンセル（スクロール優先）
+                    // 長押し確定前に動いた → スクロール優先でキャンセル
                     if (!isDragging) {
                         clearLongPress();
                         return;
@@ -336,7 +349,10 @@
                 }
 
                 if (!isDragging) return;
+
+                // ドラッグ中はスクロールを完全に止める
                 e.preventDefault();
+                e.stopPropagation();
 
                 const under = document.elementFromPoint(e.clientX, e.clientY);
                 const targetCard = under?.closest(".card");
@@ -348,15 +364,15 @@
                 }
             }
 
-            function onPointerUp(e) {
+            function finishDrag(e) {
                 clearLongPress();
                 const card = e.currentTarget;
 
                 if (!isDragging) {
-                    // ボタン以外＆ほとんど動いていない → リンク遷移
                     if (!e.target.closest("button") && !moved && card?.dataset.url) {
                         window.open(card.dataset.url, "_blank", "noopener,noreferrer");
                     }
+                    activePointerId = null;
                     return;
                 }
 
@@ -365,8 +381,8 @@
 
                 document.querySelectorAll(".card").forEach(el => {
                     el.classList.remove("dragging", "drag-over");
-                    el.style.touchAction = "";
                 });
+                unlockScroll();
 
                 if (targetCard && dragIndex !== null) {
                     const toIndex = Number(targetCard.dataset.index);
@@ -380,16 +396,18 @@
                 }
                 isDragging = false;
                 dragIndex = null;
+                activePointerId = null;
             }
 
-            function onPointerCancel() {
+            function onPointerCancel(e) {
                 clearLongPress();
                 document.querySelectorAll(".card").forEach(el => {
                     el.classList.remove("dragging", "drag-over");
-                    el.style.touchAction = "";
                 });
+                unlockScroll();
                 isDragging = false;
                 dragIndex = null;
+                activePointerId = null;
             }
 
             // ========== 編集 ==========
@@ -479,9 +497,10 @@
                     card.appendChild(route);
                     card.appendChild(actions);
 
+                    // passive: false で preventDefault を有効化
                     card.addEventListener("pointerdown", (e) => onPointerDown(e, index, card));
-                    card.addEventListener("pointermove", onPointerMove);
-                    card.addEventListener("pointerup", onPointerUp);
+                    card.addEventListener("pointermove", onPointerMove, { passive: false });
+                    card.addEventListener("pointerup", finishDrag);
                     card.addEventListener("pointercancel", onPointerCancel);
                     card.addEventListener("pointerleave", () => {
                         if (!isDragging) clearLongPress();
@@ -491,7 +510,9 @@
                 });
             }
 
-            // 新規追加
+            // ドキュメントレベルでも touchmove を監視（iOS対策）
+            document.addEventListener("touchmove", preventScroll, { passive: false });
+
             document.getElementById("addBtn").addEventListener("click", () => {
                 const inputA = document.getElementById("inputA").value.trim();
                 const inputB = document.getElementById("inputB").value.trim();
@@ -508,24 +529,17 @@
                 document.getElementById("inputB").value = "";
             });
 
-            // ========== PWA Service Worker（簡易） ==========
             if ("serviceWorker" in navigator) {
                 const swCode = `
                     const CACHE = "bus-approach-v1";
-                    self.addEventListener("install", (e) => {
-                        self.skipWaiting();
-                    });
-                    self.addEventListener("activate", (e) => {
-                        e.waitUntil(clients.claim());
-                    });
+                    self.addEventListener("install", () => self.skipWaiting());
+                    self.addEventListener("activate", (e) => e.waitUntil(clients.claim()));
                     self.addEventListener("fetch", (e) => {
                         e.respondWith(
                             caches.open(CACHE).then(async (cache) => {
                                 try {
                                     const res = await fetch(e.request);
-                                    if (e.request.method === "GET" && res.ok) {
-                                        cache.put(e.request, res.clone());
-                                    }
+                                    if (e.request.method === "GET" && res.ok) cache.put(e.request, res.clone());
                                     return res;
                                 } catch {
                                     return (await cache.match(e.request)) || Response.error();
@@ -535,8 +549,7 @@
                     });
                 `;
                 const blob = new Blob([swCode], { type: "application/javascript" });
-                const swUrl = URL.createObjectURL(blob);
-                navigator.serviceWorker.register(swUrl).catch(() => {});
+                navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => {});
             }
 
             window.addEventListener("DOMContentLoaded", renderIframes);
